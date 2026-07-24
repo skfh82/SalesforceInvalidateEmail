@@ -1,5 +1,8 @@
 <template>
   <lightning-card title="Email Invalidation" icon-name="standard:account">
+    <div slot="actions">
+      <a href="/lightning/setup/AsyncApexJobs/home" target="ApexJobStatus" rel="noopener noreferrer">Check Job Status</a>
+    </div>
     <div class="slds-m-top_small slds-m-bottom_medium">
       <template if:true={isProductionOrg}>
         <div class="slds-p-horizontal_small slds-p-bottom_small">
@@ -18,9 +21,10 @@
       <div class="slds-p-horizontal_small slds-p-vertical_small slds-align_absolute-center">
         <lightning-button data-id="invalidate-button" label="Invalidate Emails" title="Invalidate All Email Addresses"
           onclick={handleInvalidateClick} class="slds-m-right_small" variant="destructive"
-          disabled={isProductionOrg}></lightning-button>
+          disabled={isInvalidateDisabled}></lightning-button>
         <lightning-button data-id="restore-button" label="Restore Emails" title="Remove .invalid from Email Addresses"
-          onclick={handleRestoreClick} class="slds-m-horizontal_small" variant="success"></lightning-button>
+          onclick={handleRestoreClick} class="slds-m-horizontal_small" variant="success"
+          disabled={isRestoring}></lightning-button>
       </div>
       <p class="slds-p-horizontal_small">Depending on your org data volumes this may take some time. If email
         deliverability is enabled you will get an
@@ -29,7 +33,8 @@
         process.</p>
       <div class="slds-p-horizontal_small slds-p-vertical_small slds-align_absolute-center">
         <lightning-button data-id="scan-button" label="Scan For Email Fields" title="Scan for New Email Fields"
-          onclick={handleEmailScanClick} class="slds-m-left_small" variant="brand"></lightning-button>
+          onclick={handleEmailScanClick} class="slds-m-left_small" variant="brand"
+          disabled={isScanning}></lightning-button>
       </div>
 
     </div>

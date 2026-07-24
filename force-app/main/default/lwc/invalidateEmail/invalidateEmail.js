@@ -8,12 +8,21 @@ import isSandboxOrg from '@salesforce/apex/InvalidateEmailFlowAction.isSandboxOr
 export default class InvalidateEmail extends LightningElement {
   @wire(isSandboxOrg) isSandbox;
 
+  isInvalidating = false;
+  isRestoring = false;
+  isScanning = false;
+
   get isProductionOrg() {
     return this.isSandbox.data === false;
   }
 
+  get isInvalidateDisabled() {
+    return this.isProductionOrg || this.isInvalidating;
+  }
+
   async handleInvalidateClick() {
     // Call the AuraEnabled method to start the batch process
+    this.isInvalidating = true;
     try {
       let response = await invalidateAllConfiguredEmails();
 
@@ -47,11 +56,14 @@ export default class InvalidateEmail extends LightningElement {
           variant: 'error'
         })
       );
+    } finally {
+      this.isInvalidating = false;
     }
   }
 
   async handleRestoreClick() {
     // Call the AuraEnabled method to start the restore process
+    this.isRestoring = true;
     try {
       let response = await restoreAllConfiguredEmails();
 
@@ -85,11 +97,14 @@ export default class InvalidateEmail extends LightningElement {
           variant: 'error'
         })
       );
+    } finally {
+      this.isRestoring = false;
     }
   }
 
   async handleEmailScanClick() {
     // Call the AuraEnabled method to start the email field scanning batch process
+    this.isScanning = true;
     try {
       let response = await startEmailFieldScanAura();
 
@@ -123,6 +138,8 @@ export default class InvalidateEmail extends LightningElement {
           variant: 'error'
         })
       );
+    } finally {
+      this.isScanning = false;
     }
   }
 }

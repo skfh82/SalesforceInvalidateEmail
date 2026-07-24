@@ -149,6 +149,68 @@ describe('c-invalidate-email', () => {
         expect(startEmailFieldScanAura).toHaveBeenCalledTimes(1);
     });
 
+    it('disables the invalidate button while the invalidate call is pending and re-enables it after', async () => {
+        // Arrange
+        let resolveApex;
+        invalidateAllConfiguredEmails.mockReturnValue(
+            new Promise((resolve) => {
+                resolveApex = resolve;
+            })
+        );
+
+        const element = createElement('c-invalidate-email', {
+            is: InvalidateEmail
+        });
+        document.body.appendChild(element);
+
+        // Act
+        const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
+        invalidateButton.click();
+        await Promise.resolve();
+
+        // Assert: disabled while the call is in flight
+        expect(invalidateButton.disabled).toBe(true);
+
+        // Act: let the Apex call resolve
+        resolveApex({ success: true, message: 'Started.' });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        // Assert: re-enabled once scheduled
+        expect(invalidateButton.disabled).toBe(false);
+    });
+
+    it('disables the scan button while the scan call is pending and re-enables it after', async () => {
+        // Arrange
+        let resolveApex;
+        startEmailFieldScanAura.mockReturnValue(
+            new Promise((resolve) => {
+                resolveApex = resolve;
+            })
+        );
+
+        const element = createElement('c-invalidate-email', {
+            is: InvalidateEmail
+        });
+        document.body.appendChild(element);
+
+        // Act
+        const scanButton = element.shadowRoot.querySelector('[data-id="scan-button"]');
+        scanButton.click();
+        await Promise.resolve();
+
+        // Assert: disabled while the call is in flight
+        expect(scanButton.disabled).toBe(true);
+
+        // Act: let the Apex call resolve
+        resolveApex({ success: true, message: 'Started.' });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        // Assert: re-enabled once scheduled
+        expect(scanButton.disabled).toBe(false);
+    });
+
     it('does not show the production warning or disable the invalidate button in a sandbox', async () => {
         // Arrange
         const element = createElement('c-invalidate-email', {
