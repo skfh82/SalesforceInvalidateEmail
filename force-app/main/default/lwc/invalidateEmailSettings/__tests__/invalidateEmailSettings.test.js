@@ -105,8 +105,8 @@ describe('c-invalidate-email-settings', () => {
     await Promise.resolve();
 
     // Verify buttons are enabled after modification
-    const saveButton = element.shadowRoot.querySelector('lightning-button[label="Save & Deploy"]');
-    const resetButton = element.shadowRoot.querySelector('lightning-button[label="Reset"]');
+    const saveButton = element.shadowRoot.querySelector('[data-id="save-button"]');
+    const resetButton = element.shadowRoot.querySelector('[data-id="reset-button"]');
 
     expect(saveButton.disabled).toBe(false);
     expect(resetButton.disabled).toBe(false);
@@ -141,7 +141,7 @@ describe('c-invalidate-email-settings', () => {
     });
 
     // Click save button
-    const saveButton = element.shadowRoot.querySelector('lightning-button[label="Save & Deploy"]');
+    const saveButton = element.shadowRoot.querySelector('[data-id="save-button"]');
     saveButton.click();
 
     await Promise.resolve();
