@@ -165,6 +165,97 @@ private class InvalidateEmailUndoBatchTest {
   }
 
   @isTest
+  static void testRestoreValueOnTextFieldWithMultipleEmails() {
+    String invalidationText = InvalidateEmailSettings.getInvalidationText();
+    String invalidated =
+      'a@example.com' +
+      invalidationText +
+      ', b@example.com' +
+      invalidationText +
+      '; c@example.com' +
+      invalidationText;
+
+    String result = InvalidateEmailUndoBatch.restoreValue(
+      invalidated,
+      invalidationText,
+      true
+    );
+
+    Assert.areEqual(
+      'a@example.com, b@example.com; c@example.com',
+      result,
+      'All emails should be restored and delimiters preserved'
+    );
+  }
+
+  @isTest
+  static void testRestoreValueOnTextFieldOnlyRestoresInvalidatedEmails() {
+    String invalidationText = InvalidateEmailSettings.getInvalidationText();
+    String mixed = 'a@example.com' + invalidationText + ', b@example.com';
+
+    String result = InvalidateEmailUndoBatch.restoreValue(
+      mixed,
+      invalidationText,
+      true
+    );
+
+    Assert.areEqual(
+      'a@example.com, b@example.com',
+      result,
+      'Only the invalidated email should change'
+    );
+  }
+
+  @isTest
+  static void testRestoreValueOnTextFieldIsIdempotent() {
+    String invalidationText = InvalidateEmailSettings.getInvalidationText();
+    String notInvalidated = 'a@example.com, b@example.com';
+
+    String result = InvalidateEmailUndoBatch.restoreValue(
+      notInvalidated,
+      invalidationText,
+      true
+    );
+
+    Assert.isNull(result, 'No change should be made when nothing is invalidated');
+  }
+
+  @isTest
+  static void testBatchRestoresMultipleEmailsInTextField() {
+    String invalidationText = InvalidateEmailSettings.getInvalidationText();
+    Contact testContact = new Contact(
+      FirstName = 'Test',
+      LastName = 'VenueEmails',
+      Description = 'venue1@example.com' +
+        invalidationText +
+        ', venue2@example.com' +
+        invalidationText
+    );
+    insert testContact;
+
+    Test.startTest();
+
+    InvalidateEmailUndoBatch batch = new InvalidateEmailUndoBatch(
+      'Contact',
+      new Set<String>{ 'Description' }
+    );
+    Database.executeBatch(batch, contactCount + 5);
+
+    Test.stopTest();
+
+    Contact updatedContact = [
+      SELECT Id, Description
+      FROM Contact
+      WHERE Id = :testContact.Id
+    ];
+    Assert.areEqual(
+      'venue1@example.com, venue2@example.com',
+      updatedContact.Description,
+      'Both venue emails should be restored'
+    );
+  }
+
+  @isTest
   static void testBatchNoRecords() {
     // Delete all the contacts from Setup
     List<Contact> contacts = [SELECT Id FROM Contact];

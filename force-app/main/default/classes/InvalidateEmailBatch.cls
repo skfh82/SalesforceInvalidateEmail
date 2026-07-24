@@ -16,16 +16,31 @@ public without sharing class InvalidateEmailBatch implements Database.Batchable<
 
     // Create a comma spliced string of fields.
     String preppedFields = 'Id';
+    Boolean hasUnfilterableField = false;
     String whereClause = ' WHERE Id!=\'\' AND (';
     for (String f : fields) {
       preppedFields = preppedFields + ',' + f;
-      whereClause = whereClause + ' ' + f + '<>\'\' OR';
+      if (isFilterable(objectName, f)) {
+        whereClause = whereClause + ' ' + f + '<>\'\' OR';
+      } else {
+        // Long Text Area/Rich Text fields (e.g. a multi-email field like
+        // Product2.Venue_Emails__c) can't be referenced in a WHERE clause,
+        // so we can't narrow the query using them. Fall back to processing
+        // every record for this object; execute() skips ones that don't
+        // actually need a change.
+        hasUnfilterableField = true;
+      }
     }
     whereClause = whereClause + ' Id=\'\')';
 
     if (String.isNotBlank(objectName) && preppedFields != 'Id') {
       // Process specific object and field
-      query = 'SELECT ' + preppedFields + ' FROM ' + objectName + whereClause;
+      query =
+        'SELECT ' +
+        preppedFields +
+        ' FROM ' +
+        objectName +
+        (hasUnfilterableField ? ' WHERE Id!=\'\'' : whereClause);
     }
 
     System.debug('InvalidateEmailBatch query: ' + query);
@@ -34,23 +49,30 @@ public without sharing class InvalidateEmailBatch implements Database.Batchable<
 
   public void execute(Database.BatchableContext context, List<SObject> scope) {
     List<SObject> recordsToUpdate = new List<SObject>();
+    String invalidationText = InvalidateEmailSettings.getInvalidationText();
+
+    Map<String, Boolean> fieldIsTextMap = new Map<String, Boolean>();
+    for (String emailField : fields) {
+      fieldIsTextMap.put(emailField, isTextField(objectName, emailField));
+    }
 
     for (SObject record : scope) {
       for (String emailField : fields) {
         try {
           System.debug('Processing record: ' + record);
-          String currentEmail = (String) record.get(emailField);
-          String invalidationText = InvalidateEmailSettings.getInvalidationText();
-          if (
-            String.isNotBlank(currentEmail) &&
-            !currentEmail.endsWith(invalidationText)
-          ) {
-            // Invalidate the email by appending the configured invalidation text
-            String invalidatedEmail = currentEmail + invalidationText;
+          String currentValue = (String) record.get(emailField);
+          if (String.isNotBlank(currentValue)) {
+            String invalidatedValue = invalidateValue(
+              currentValue,
+              invalidationText,
+              fieldIsTextMap.get(emailField)
+            );
 
-            record.put(emailField, invalidatedEmail);
-            recordsToUpdate.add(record);
-            recordsProcessed++;
+            if (invalidatedValue != null) {
+              record.put(emailField, invalidatedValue);
+              recordsToUpdate.add(record);
+              recordsProcessed++;
+            }
           }
         } catch (Exception e) {
           errors.add(
@@ -143,6 +165,89 @@ public without sharing class InvalidateEmailBatch implements Database.Batchable<
 
   // Custom exception used to block email invalidation outside of sandboxes
   public class ProductionOrgException extends Exception {
+  }
+
+  // Matches individual email addresses within a field's value. Text/TextArea
+  // fields (e.g. Product2.Venue_Emails__c) may hold more than one address
+  // separated by commas, semicolons, or whitespace; this lets us invalidate
+  // each address in place without disturbing the delimiters between them.
+  public static final Pattern EMAIL_PATTERN = Pattern.compile(
+    '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}'
+  );
+
+  // Native Email fields always hold a single address, so the whole value can
+  // be treated as one email. Text/TextArea fields have no such guarantee and
+  // are treated as potentially holding a delimited list of addresses.
+  public static Boolean isTextField(String objectName, String fieldApiName) {
+    Schema.SObjectType sObjType = Schema.getGlobalDescribe().get(objectName);
+    if (sObjType == null) {
+      return false;
+    }
+
+    Schema.SObjectField field = sObjType.getDescribe()
+      .fields.getMap()
+      .get(fieldApiName);
+    if (field == null) {
+      return false;
+    }
+
+    Schema.DisplayType fieldType = field.getDescribe().getType();
+    return fieldType == Schema.DisplayType.STRING ||
+      fieldType == Schema.DisplayType.TEXTAREA;
+  }
+
+  // Long Text Area/Rich Text fields (and a handful of other field types)
+  // can't be referenced in a SOQL WHERE clause. Callers that build a query
+  // filter around a configured field need to check this first.
+  public static Boolean isFilterable(String objectName, String fieldApiName) {
+    Schema.SObjectType sObjType = Schema.getGlobalDescribe().get(objectName);
+    if (sObjType == null) {
+      return true;
+    }
+
+    Schema.SObjectField field = sObjType.getDescribe()
+      .fields.getMap()
+      .get(fieldApiName);
+    if (field == null) {
+      return true;
+    }
+
+    return field.getDescribe().isFilterable();
+  }
+
+  // Appends the invalidation text to the value. For a plain Email field the
+  // whole value is a single address. For a text field, every email address
+  // found in the value is invalidated individually, leaving delimiters and
+  // any surrounding text untouched. Returns null when no change is needed.
+  public static String invalidateValue(
+    String value,
+    String invalidationText,
+    Boolean isTextField
+  ) {
+    if (!isTextField) {
+      return value.endsWith(invalidationText)
+        ? null
+        : value + invalidationText;
+    }
+
+    Matcher matcher = EMAIL_PATTERN.matcher(value);
+    Boolean changed = false;
+    String result = '';
+    Integer lastEnd = 0;
+
+    while (matcher.find()) {
+      result += value.substring(lastEnd, matcher.start());
+      String emailMatch = matcher.group();
+      if (!emailMatch.endsWith(invalidationText)) {
+        emailMatch += invalidationText;
+        changed = true;
+      }
+      result += emailMatch;
+      lastEnd = matcher.end();
+    }
+    result += value.substring(lastEnd);
+
+    return changed ? result : null;
   }
 
   // Static method to process all configured email fields from custom metadata

@@ -197,6 +197,152 @@ private class InvalidateEmailBatchTest {
   }
 
   @isTest
+  static void testIsTextFieldDistinguishesEmailFromTextFields() {
+    Assert.isFalse(
+      InvalidateEmailBatch.isTextField('Contact', 'Email'),
+      'Email fields should not be treated as multi-value text fields'
+    );
+    Assert.isTrue(
+      InvalidateEmailBatch.isTextField('Contact', 'Description'),
+      'TextArea fields should be treated as multi-value text fields'
+    );
+    Assert.isFalse(
+      InvalidateEmailBatch.isTextField('Contact', 'DoesNotExist__c'),
+      'Unknown fields should default to false'
+    );
+  }
+
+  @isTest
+  static void testIsFilterableDistinguishesLongTextAreaFields() {
+    Assert.isTrue(
+      InvalidateEmailBatch.isFilterable('Contact', 'Email'),
+      'A plain Email field should be filterable'
+    );
+    Assert.isFalse(
+      InvalidateEmailBatch.isFilterable('Contact', 'Description'),
+      'A Long Text Area field should not be filterable'
+    );
+  }
+
+  @isTest
+  static void testBatchHandlesUnfilterableTextField() {
+    String invalidationText = InvalidateEmailSettings.getInvalidationText();
+    Contact testContact = new Contact(
+      FirstName = 'Test',
+      LastName = 'VenueEmails',
+      Description = 'venue1@example.com, venue2@example.com'
+    );
+    insert testContact;
+
+    Test.startTest();
+
+    // Description is a Long Text Area field, which can't be filtered in a
+    // SOQL WHERE clause. start() must fall back gracefully instead of
+    // throwing a QueryException.
+    InvalidateEmailBatch batch = new InvalidateEmailBatch(
+      'Contact',
+      new Set<String>{ 'Description' }
+    );
+    Database.executeBatch(batch, contactCount + 5);
+
+    Test.stopTest();
+
+    Contact updatedContact = [
+      SELECT Id, Description
+      FROM Contact
+      WHERE Id = :testContact.Id
+    ];
+    Assert.isTrue(
+      updatedContact.Description.contains(
+        'venue1@example.com' + invalidationText
+      ),
+      'First venue email should be invalidated'
+    );
+    Assert.isTrue(
+      updatedContact.Description.contains(
+        'venue2@example.com' + invalidationText
+      ),
+      'Second venue email should be invalidated'
+    );
+  }
+
+  @isTest
+  static void testInvalidateValueOnTextFieldWithMultipleEmails() {
+    String invalidationText = InvalidateEmailSettings.getInvalidationText();
+    String original = 'a@example.com, b@example.com; c@example.com';
+
+    String result = InvalidateEmailBatch.invalidateValue(
+      original,
+      invalidationText,
+      true
+    );
+
+    Assert.isTrue(
+      result.contains('a@example.com' + invalidationText),
+      'First email should be invalidated'
+    );
+    Assert.isTrue(
+      result.contains('b@example.com' + invalidationText),
+      'Second email should be invalidated'
+    );
+    Assert.isTrue(
+      result.contains('c@example.com' + invalidationText),
+      'Third email should be invalidated'
+    );
+    Assert.isTrue(
+      result.contains(', ') && result.contains('; '),
+      'Original delimiters should be preserved'
+    );
+  }
+
+  @isTest
+  static void testInvalidateValueOnTextFieldIsIdempotent() {
+    String invalidationText = InvalidateEmailSettings.getInvalidationText();
+    String alreadyInvalidated =
+      'a@example.com' + invalidationText + ', b@example.com' + invalidationText;
+
+    String result = InvalidateEmailBatch.invalidateValue(
+      alreadyInvalidated,
+      invalidationText,
+      true
+    );
+
+    Assert.isNull(
+      result,
+      'No change should be made when every email is already invalidated'
+    );
+  }
+
+  @isTest
+  static void testInvalidateValueOnTextFieldOnlyInvalidatesRemainingEmails() {
+    String invalidationText = InvalidateEmailSettings.getInvalidationText();
+    String mixed =
+      'a@example.com' + invalidationText + ', b@example.com';
+
+    String result = InvalidateEmailBatch.invalidateValue(
+      mixed,
+      invalidationText,
+      true
+    );
+
+    Assert.isNotNull(result, 'A change should be made');
+    Assert.isTrue(
+      result.contains('a@example.com' + invalidationText),
+      'Already-invalidated email should be left as-is'
+    );
+    Assert.isTrue(
+      result.contains('b@example.com' + invalidationText),
+      'Remaining email should be invalidated'
+    );
+    Assert.isFalse(
+      result.contains(
+        'a@example.com' + invalidationText + invalidationText
+      ),
+      'Already-invalidated email should not be double invalidated'
+    );
+  }
+
+  @isTest
   static void testGetFieldDetails() {
     Test.startTest();
 

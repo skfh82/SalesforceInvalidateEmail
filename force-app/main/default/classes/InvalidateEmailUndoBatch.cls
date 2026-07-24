@@ -17,22 +17,38 @@ public without sharing class InvalidateEmailUndoBatch implements Database.Batcha
     // Create a comma spliced string of fields.
     String preppedFields = 'Id';
     String invalidationText = InvalidateEmailSettings.getInvalidationText();
+    Boolean hasUnfilterableField = false;
     String whereClause = ' WHERE Id!=\'\' AND (';
     for (String f : fields) {
       preppedFields = preppedFields + ',' + f;
-      whereClause =
-        whereClause +
-        ' ' +
-        f +
-        ' LIKE \'%' +
-        invalidationText +
-        '\' OR';
+      if (InvalidateEmailBatch.isFilterable(objectName, f)) {
+        // Use a contains-style LIKE (wildcards on both sides) rather than an
+        // ends-with match, since a text field can hold multiple emails and
+        // the invalidated one is not necessarily the last one in the value.
+        whereClause =
+          whereClause +
+          ' ' +
+          f +
+          ' LIKE \'%' +
+          invalidationText +
+          '%\' OR';
+      } else {
+        // Long Text Area/Rich Text fields can't be referenced in a WHERE
+        // clause, so fall back to processing every record for this object;
+        // execute() skips ones that don't actually need a change.
+        hasUnfilterableField = true;
+      }
     }
     whereClause = whereClause + ' Id=\'\')';
 
     if (String.isNotBlank(objectName) && preppedFields != 'Id') {
       // Process specific object and field
-      query = 'SELECT ' + preppedFields + ' FROM ' + objectName + whereClause;
+      query =
+        'SELECT ' +
+        preppedFields +
+        ' FROM ' +
+        objectName +
+        (hasUnfilterableField ? ' WHERE Id!=\'\'' : whereClause);
     }
 
     System.debug('InvalidateEmailUndoBatch query: ' + query);
@@ -41,23 +57,33 @@ public without sharing class InvalidateEmailUndoBatch implements Database.Batcha
 
   public void execute(Database.BatchableContext context, List<SObject> scope) {
     List<SObject> recordsToUpdate = new List<SObject>();
+    String invalidationText = InvalidateEmailSettings.getInvalidationText();
+
+    Map<String, Boolean> fieldIsTextMap = new Map<String, Boolean>();
+    for (String emailField : fields) {
+      fieldIsTextMap.put(
+        emailField,
+        InvalidateEmailBatch.isTextField(objectName, emailField)
+      );
+    }
 
     for (SObject record : scope) {
       for (String emailField : fields) {
         try {
           System.debug('Processing record: ' + record);
-          String currentEmail = (String) record.get(emailField);
-          String invalidationText = InvalidateEmailSettings.getInvalidationText();
-          if (
-            String.isNotBlank(currentEmail) &&
-            currentEmail.endsWith(invalidationText)
-          ) {
-            // Restore the email by removing the configured invalidation text suffix
-            String restoredEmail = currentEmail.removeEnd(invalidationText);
+          String currentValue = (String) record.get(emailField);
+          if (String.isNotBlank(currentValue)) {
+            String restoredValue = restoreValue(
+              currentValue,
+              invalidationText,
+              fieldIsTextMap.get(emailField)
+            );
 
-            record.put(emailField, restoredEmail);
-            recordsToUpdate.add(record);
-            recordsProcessed++;
+            if (restoredValue != null) {
+              record.put(emailField, restoredValue);
+              recordsToUpdate.add(record);
+              recordsProcessed++;
+            }
           }
         } catch (Exception e) {
           errors.add(
@@ -146,6 +172,42 @@ public without sharing class InvalidateEmailUndoBatch implements Database.Batcha
         System.debug('Error sending completion email: ' + e.getMessage());
       }
     }
+  }
+
+  // Removes the invalidation text from the value. For a plain Email field the
+  // whole value is a single address. For a text field, every invalidated
+  // email address found in the value is restored individually, leaving
+  // delimiters and any surrounding text untouched. Returns null when no
+  // change is needed.
+  public static String restoreValue(
+    String value,
+    String invalidationText,
+    Boolean isTextField
+  ) {
+    if (!isTextField) {
+      return value.endsWith(invalidationText)
+        ? value.removeEnd(invalidationText)
+        : null;
+    }
+
+    Matcher matcher = InvalidateEmailBatch.EMAIL_PATTERN.matcher(value);
+    Boolean changed = false;
+    String result = '';
+    Integer lastEnd = 0;
+
+    while (matcher.find()) {
+      result += value.substring(lastEnd, matcher.start());
+      String emailMatch = matcher.group();
+      if (emailMatch.endsWith(invalidationText)) {
+        emailMatch = emailMatch.removeEnd(invalidationText);
+        changed = true;
+      }
+      result += emailMatch;
+      lastEnd = matcher.end();
+    }
+    result += value.substring(lastEnd);
+
+    return changed ? result : null;
   }
 
   // Static method to process all configured email fields from custom metadata
