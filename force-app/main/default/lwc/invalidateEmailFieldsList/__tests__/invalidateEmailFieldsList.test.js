@@ -49,15 +49,15 @@ describe('c-invalidate-email-fields-list', () => {
         Id: 'test1',
         Label: 'Contact Email',
         DeveloperName: 'Contact_Email',
-        Object__c: 'Contact',
-        Field_Name__c: 'Email'
+        ObjectName: 'Contact',
+        FieldName: 'Email'
       },
       {
         Id: 'test2',
         Label: 'Lead Email',
         DeveloperName: 'Lead_Email',
-        Object__c: 'Lead',
-        Field_Name__c: 'Email'
+        ObjectName: 'Lead',
+        FieldName: 'Email'
       }
     ];
 
@@ -142,8 +142,8 @@ describe('c-invalidate-email-fields-list', () => {
         Id: 'test1',
         Label: 'Contact Email',
         DeveloperName: 'Contact_Email',
-        Object__c: 'Contact',
-        Field_Name__c: 'Email'
+        ObjectName: 'Contact',
+        FieldName: 'Email'
       }
     ];
 

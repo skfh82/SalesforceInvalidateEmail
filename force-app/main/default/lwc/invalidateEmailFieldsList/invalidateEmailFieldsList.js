@@ -19,13 +19,13 @@ const COLUMNS = [
   },
   {
     label: 'Object',
-    fieldName: 'Object__c',
+    fieldName: 'ObjectName',
     type: 'text',
     sortable: true
   },
   {
     label: 'Field Name',
-    fieldName: 'Field_Name__c',
+    fieldName: 'FieldName',
     type: 'text',
     sortable: true
   },
@@ -51,8 +51,7 @@ export default class InvalidateEmailFieldsList extends NavigationMixin(Lightning
   @wire(getInvalidateEmailFields)
   wiredInvalidateEmailFields({ error, data }) {
     if (data) {
-      // Convert map to list
-      this.invalidateEmailFields = Object.values(data);
+      this.invalidateEmailFields = data;
       this.error = undefined;
       this.isLoading = false;
     } else if (error) {

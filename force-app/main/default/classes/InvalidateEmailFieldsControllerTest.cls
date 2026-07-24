@@ -8,7 +8,7 @@ private class InvalidateEmailFieldsControllerTest {
   static void testGetInvalidateEmailFields() {
     Test.startTest();
 
-    Map<String, Email_Invalidator_Fields__mdt> result = InvalidateEmailFieldsController.getInvalidateEmailFields();
+    List<InvalidateEmailFieldsController.InvalidateEmailField> result = InvalidateEmailFieldsController.getInvalidateEmailFields();
 
     Test.stopTest();
 
@@ -16,13 +16,12 @@ private class InvalidateEmailFieldsControllerTest {
     Assert.isNotNull(result, 'Result should not be null');
 
     // If there are any custom metadata records, verify they have the expected fields
-    for (String record : result.keySet()) {
-      Email_Invalidator_Fields__mdt field = result.get(record);
+    for (InvalidateEmailFieldsController.InvalidateEmailField field : result) {
       Assert.isNotNull(field.Id, 'Id should not be null');
       Assert.isNotNull(field.Label, 'Label should not be null');
       Assert.isNotNull(field.DeveloperName, 'DeveloperName should not be null');
-      Assert.isNotNull(field.Object__c, 'Object__c should not be null');
-      Assert.isNotNull(field.Field_Name__c, 'Field_Name__c should not be null');
+      Assert.isNotNull(field.ObjectName, 'ObjectName should not be null');
+      Assert.isNotNull(field.FieldName, 'FieldName should not be null');
     }
   }
 
