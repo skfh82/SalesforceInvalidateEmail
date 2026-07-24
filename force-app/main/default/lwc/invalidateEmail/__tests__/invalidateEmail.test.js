@@ -1,6 +1,7 @@
 import { createElement } from '@lwc/engine-dom';
 import InvalidateEmail from 'c/invalidateEmail';
 import invalidateAllConfiguredEmails from '@salesforce/apex/InvalidateEmailFlowAction.invalidateAllConfiguredEmailsAura';
+import restoreAllConfiguredEmails from '@salesforce/apex/InvalidateEmailUndoFlowAction.restoreAllConfiguredEmailsAura';
 import startEmailFieldScanAura from '@salesforce/apex/EmailFieldScannerController.startEmailFieldScanAura';
 import isSandboxOrg from '@salesforce/apex/InvalidateEmailFlowAction.isSandboxOrg';
 import getActiveJobStatus from '@salesforce/apex/EmailInvalidatorJobStatusController.getActiveJobStatus';
@@ -8,6 +9,17 @@ import getActiveJobStatus from '@salesforce/apex/EmailInvalidatorJobStatusContro
 // Mock the Apex methods
 jest.mock(
     '@salesforce/apex/InvalidateEmailFlowAction.invalidateAllConfiguredEmailsAura',
+    () => {
+        const { createApexTestWireAdapter } = require('@salesforce/sfdx-lwc-jest');
+        return {
+            default: createApexTestWireAdapter(jest.fn())
+        };
+    },
+    { virtual: true }
+);
+
+jest.mock(
+    '@salesforce/apex/InvalidateEmailUndoFlowAction.restoreAllConfiguredEmailsAura',
     () => {
         const { createApexTestWireAdapter } = require('@salesforce/sfdx-lwc-jest');
         return {
@@ -47,10 +59,14 @@ jest.mock(
     { virtual: true }
 );
 
+function inactiveAction() {
+    return { active: false, jobCount: 0, batchesProcessed: null, totalBatches: null };
+}
+
 const NO_ACTIVE_JOBS = {
-    invalidateActive: false,
-    restoreActive: false,
-    scanActive: false
+    invalidate: inactiveAction(),
+    restore: inactiveAction(),
+    scan: inactiveAction()
 };
 
 function flushPromises() {
@@ -72,7 +88,7 @@ describe('c-invalidate-email', () => {
         jest.clearAllMocks();
     });
 
-    it('always shows the static Check Job Status link', () => {
+    it('always shows the static Apex Job Status link', () => {
         // Arrange
         const element = createElement('c-invalidate-email', {
             is: InvalidateEmail
@@ -84,7 +100,7 @@ describe('c-invalidate-email', () => {
         // Assert
         const jobsLink = element.shadowRoot.querySelector('a[href="/lightning/setup/AsyncApexJobs/home"]');
         expect(jobsLink).not.toBeNull();
-        expect(jobsLink.textContent).toBe('Check Job Status');
+        expect(jobsLink.textContent).toBe('Apex Job Status');
     });
 
     it('renders the component with all three buttons', () => {
@@ -141,8 +157,14 @@ describe('c-invalidate-email', () => {
         expect(invalidateAllConfiguredEmails).toHaveBeenCalledTimes(1);
     });
 
-    it('executes restore button click without errors (placeholder functionality)', async () => {
+    it('calls Apex method and shows success toast on restore button click', async () => {
         // Arrange
+        const mockResponse = {
+            success: true,
+            message: 'Email restoration batch jobs started for all configured email fields.'
+        };
+        restoreAllConfiguredEmails.mockResolvedValue(mockResponse);
+
         const element = createElement('c-invalidate-email', {
             is: InvalidateEmail
         });
@@ -150,18 +172,13 @@ describe('c-invalidate-email', () => {
 
         // Act
         const restoreButton = element.shadowRoot.querySelector('[data-id="restore-button"]');
-
-        // This should not throw an error
-        expect(() => {
-            restoreButton.click();
-        }).not.toThrow();
+        restoreButton.click();
 
         // Wait for async operations
         await Promise.resolve();
 
-        // Assert that the button exists and is clickable
-        expect(restoreButton).not.toBeNull();
-        expect(restoreButton.label).toBe('Restore Emails');
+        // Assert
+        expect(restoreAllConfiguredEmails).toHaveBeenCalledTimes(1);
     });
 
     it('calls Apex method and shows success toast on scan button click', async () => {
@@ -219,6 +236,37 @@ describe('c-invalidate-email', () => {
         expect(invalidateButton.disabled).toBe(false);
     });
 
+    it('disables the restore button while the restore call is pending and re-enables it after', async () => {
+        // Arrange
+        let resolveApex;
+        restoreAllConfiguredEmails.mockReturnValue(
+            new Promise((resolve) => {
+                resolveApex = resolve;
+            })
+        );
+
+        const element = createElement('c-invalidate-email', {
+            is: InvalidateEmail
+        });
+        document.body.appendChild(element);
+
+        // Act
+        const restoreButton = element.shadowRoot.querySelector('[data-id="restore-button"]');
+        restoreButton.click();
+        await Promise.resolve();
+
+        // Assert: disabled while the call is in flight
+        expect(restoreButton.disabled).toBe(true);
+
+        // Act: let the Apex call resolve
+        resolveApex({ success: true, message: 'Started.' });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        // Assert: re-enabled once scheduled
+        expect(restoreButton.disabled).toBe(false);
+    });
+
     it('disables the scan button while the scan call is pending and re-enables it after', async () => {
         // Arrange
         let resolveApex;
@@ -250,7 +298,7 @@ describe('c-invalidate-email', () => {
         expect(scanButton.disabled).toBe(false);
     });
 
-    it('does not show the processing banner or disable buttons when no jobs are active', async () => {
+    it('does not show any processing banner or disable buttons when no jobs are active', async () => {
         // Arrange
         const element = createElement('c-invalidate-email', {
             is: InvalidateEmail
@@ -261,8 +309,8 @@ describe('c-invalidate-email', () => {
         await flushPromises();
 
         // Assert
-        const banner = element.shadowRoot.querySelector('.slds-theme_info');
-        expect(banner).toBeNull();
+        const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
+        expect(banners).toHaveLength(0);
 
         const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
         const restoreButton = element.shadowRoot.querySelector('[data-id="restore-button"]');
@@ -272,12 +320,12 @@ describe('c-invalidate-email', () => {
         expect(scanButton.disabled).toBe(false);
     });
 
-    it('shows the processing banner and disables only the invalidate button when an invalidate job is active', async () => {
+    it('shows only the invalidate banner and disables only the invalidate button when an invalidate job is active', async () => {
         // Arrange
         getActiveJobStatus.mockResolvedValue({
-            invalidateActive: true,
-            restoreActive: false,
-            scanActive: false
+            invalidate: { active: true, jobCount: 2, batchesProcessed: null, totalBatches: null },
+            restore: inactiveAction(),
+            scan: inactiveAction()
         });
 
         const element = createElement('c-invalidate-email', {
@@ -288,10 +336,10 @@ describe('c-invalidate-email', () => {
         document.body.appendChild(element);
         await flushPromises();
 
-        // Assert
-        const banner = element.shadowRoot.querySelector('.slds-theme_info');
-        expect(banner).not.toBeNull();
-        expect(banner.textContent).toContain('A processing job is already running');
+        // Assert: exactly one banner shown, with the invalidate-specific count
+        const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
+        expect(banners).toHaveLength(1);
+        expect(banners[0].textContent).toContain('Invalidate Emails: 2 batches currently processing.');
 
         const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
         const restoreButton = element.shadowRoot.querySelector('[data-id="restore-button"]');
@@ -301,15 +349,12 @@ describe('c-invalidate-email', () => {
         expect(scanButton.disabled).toBe(false);
     });
 
-    it('shows the count of holding/processing batches without progress when none are yet Processing', async () => {
+    it('shows batches processed / total batches progress for a Processing invalidate job', async () => {
         // Arrange
         getActiveJobStatus.mockResolvedValue({
-            invalidateActive: true,
-            restoreActive: false,
-            scanActive: false,
-            activeJobCount: 3,
-            batchesProcessed: null,
-            totalBatches: null
+            invalidate: { active: true, jobCount: 1, batchesProcessed: 4, totalBatches: 10 },
+            restore: inactiveAction(),
+            scan: inactiveAction()
         });
 
         const element = createElement('c-invalidate-email', {
@@ -321,20 +366,19 @@ describe('c-invalidate-email', () => {
         await flushPromises();
 
         // Assert
-        const banner = element.shadowRoot.querySelector('.slds-theme_info');
-        expect(banner.textContent).toContain('3 batches currently processing.');
-        expect(banner.textContent).not.toContain('batches processed');
+        const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
+        expect(banners).toHaveLength(1);
+        expect(banners[0].textContent).toContain(
+            'Invalidate Emails: Processing 4 of 10 batches. 1 batch currently processing.'
+        );
     });
 
-    it('shows batches processed / total batches progress for a Processing job', async () => {
+    it('shows only the restore banner and disables only the restore button when a restore job is active', async () => {
         // Arrange
         getActiveJobStatus.mockResolvedValue({
-            invalidateActive: true,
-            restoreActive: false,
-            scanActive: false,
-            activeJobCount: 1,
-            batchesProcessed: 4,
-            totalBatches: 10
+            invalidate: inactiveAction(),
+            restore: { active: true, jobCount: 1, batchesProcessed: 2, totalBatches: 5 },
+            scan: inactiveAction()
         });
 
         const element = createElement('c-invalidate-email', {
@@ -346,28 +390,12 @@ describe('c-invalidate-email', () => {
         await flushPromises();
 
         // Assert
-        const banner = element.shadowRoot.querySelector('.slds-theme_info');
-        expect(banner.textContent).toContain('1 batch currently processing.');
-        expect(banner.textContent).toContain('Currently processing 4 of 10 batches.');
-    });
+        const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
+        expect(banners).toHaveLength(1);
+        expect(banners[0].textContent).toContain(
+            'Restore Emails: Processing 2 of 5 batches. 1 batch currently processing.'
+        );
 
-    it('disables only the restore button when a restore job is active', async () => {
-        // Arrange
-        getActiveJobStatus.mockResolvedValue({
-            invalidateActive: false,
-            restoreActive: true,
-            scanActive: false
-        });
-
-        const element = createElement('c-invalidate-email', {
-            is: InvalidateEmail
-        });
-
-        // Act
-        document.body.appendChild(element);
-        await flushPromises();
-
-        // Assert
         const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
         const restoreButton = element.shadowRoot.querySelector('[data-id="restore-button"]');
         const scanButton = element.shadowRoot.querySelector('[data-id="scan-button"]');
@@ -376,12 +404,12 @@ describe('c-invalidate-email', () => {
         expect(scanButton.disabled).toBe(false);
     });
 
-    it('disables only the scan button when a scan job is active', async () => {
+    it('shows only the scan banner and disables only the scan button when a scan job is active', async () => {
         // Arrange
         getActiveJobStatus.mockResolvedValue({
-            invalidateActive: false,
-            restoreActive: false,
-            scanActive: true
+            invalidate: inactiveAction(),
+            restore: inactiveAction(),
+            scan: { active: true, jobCount: 1, batchesProcessed: null, totalBatches: null }
         });
 
         const element = createElement('c-invalidate-email', {
@@ -393,12 +421,37 @@ describe('c-invalidate-email', () => {
         await flushPromises();
 
         // Assert
+        const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
+        expect(banners).toHaveLength(1);
+        expect(banners[0].textContent).toContain('Scan For Email Fields: 1 batch currently processing.');
+
         const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
         const restoreButton = element.shadowRoot.querySelector('[data-id="restore-button"]');
         const scanButton = element.shadowRoot.querySelector('[data-id="scan-button"]');
         expect(invalidateButton.disabled).toBe(false);
         expect(restoreButton.disabled).toBe(false);
         expect(scanButton.disabled).toBe(true);
+    });
+
+    it('shows all three banners at once when every job type is active', async () => {
+        // Arrange
+        getActiveJobStatus.mockResolvedValue({
+            invalidate: { active: true, jobCount: 1, batchesProcessed: null, totalBatches: null },
+            restore: { active: true, jobCount: 1, batchesProcessed: null, totalBatches: null },
+            scan: { active: true, jobCount: 1, batchesProcessed: null, totalBatches: null }
+        });
+
+        const element = createElement('c-invalidate-email', {
+            is: InvalidateEmail
+        });
+
+        // Act
+        document.body.appendChild(element);
+        await flushPromises();
+
+        // Assert
+        const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
+        expect(banners).toHaveLength(3);
     });
 
     it('does not show the production warning or disable the invalidate button in a sandbox', async () => {
@@ -413,7 +466,7 @@ describe('c-invalidate-email', () => {
         await Promise.resolve();
 
         // Assert
-        const alert = element.shadowRoot.querySelector('.slds-notify_alert');
+        const alert = element.shadowRoot.querySelector('.slds-theme_warning');
         expect(alert).toBeNull();
 
         const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
@@ -432,7 +485,7 @@ describe('c-invalidate-email', () => {
         await Promise.resolve();
 
         // Assert
-        const alert = element.shadowRoot.querySelector('.slds-notify_alert');
+        const alert = element.shadowRoot.querySelector('.slds-theme_warning');
         expect(alert).not.toBeNull();
         expect(alert.textContent).toContain('production org');
 

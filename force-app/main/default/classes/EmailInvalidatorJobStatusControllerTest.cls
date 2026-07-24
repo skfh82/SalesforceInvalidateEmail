@@ -6,24 +6,28 @@ private class EmailInvalidatorJobStatusControllerTest {
     EmailInvalidatorJobStatusController.JobStatus status = EmailInvalidatorJobStatusController.getActiveJobStatus();
     Test.stopTest();
 
-    Assert.isFalse(
-      status.invalidateActive,
-      'No invalidate batch is running'
-    );
-    Assert.isFalse(status.restoreActive, 'No restore batch is running');
-    Assert.isFalse(status.scanActive, 'No scan batch is running');
+    assertInactive(status.invalidate, 'invalidate');
+    assertInactive(status.restore, 'restore');
+    assertInactive(status.scan, 'scan');
+  }
+
+  private static void assertInactive(
+    EmailInvalidatorJobStatusController.ActionJobStatus actionStatus,
+    String label
+  ) {
+    Assert.isFalse(actionStatus.active, 'No ' + label + ' batch is running');
     Assert.areEqual(
       0,
-      status.activeJobCount,
-      'No jobs are Holding or Processing'
+      actionStatus.jobCount,
+      'No ' + label + ' jobs are Holding or Processing'
     );
     Assert.isNull(
-      status.batchesProcessed,
-      'No job is Processing, so there is no progress to report'
+      actionStatus.batchesProcessed,
+      'No ' + label + ' job is Processing, so there is no progress to report'
     );
     Assert.isNull(
-      status.totalBatches,
-      'No job is Processing, so there is no progress to report'
+      actionStatus.totalBatches,
+      'No ' + label + ' job is Processing, so there is no progress to report'
     );
   }
 
@@ -56,7 +60,7 @@ private class EmailInvalidatorJobStatusControllerTest {
     EmailInvalidatorJobStatusController.JobStatus status = EmailInvalidatorJobStatusController.getActiveJobStatus();
 
     Assert.isFalse(
-      status.invalidateActive,
+      status.invalidate.active,
       'A completed batch should not be reported as active'
     );
   }

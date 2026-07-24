@@ -8,10 +8,9 @@ public with sharing class EmailInvalidatorJobStatusController {
   @AuraEnabled
   public static JobStatus getActiveJobStatus() {
     JobStatus status = new JobStatus();
-    status.invalidateActive = false;
-    status.restoreActive = false;
-    status.scanActive = false;
-    status.activeJobCount = 0;
+    status.invalidate = new ActionJobStatus();
+    status.restore = new ActionJobStatus();
+    status.scan = new ActionJobStatus();
 
     for (AsyncApexJob job : [
       SELECT ApexClass.Name, Status, JobItemsProcessed, TotalJobItems
@@ -26,43 +25,65 @@ public with sharing class EmailInvalidatorJobStatusController {
         AND Status IN :ACTIVE_STATUSES
       ORDER BY CreatedDate DESC
     ]) {
-      status.activeJobCount++;
-
-      if (job.ApexClass.Name == 'InvalidateEmailBatch') {
-        status.invalidateActive = true;
-      } else if (job.ApexClass.Name == 'InvalidateEmailUndoBatch') {
-        status.restoreActive = true;
-      } else if (job.ApexClass.Name == 'EmailFieldScannerBatch') {
-        status.scanActive = true;
+      ActionJobStatus actionStatus = getActionStatus(
+        status,
+        job.ApexClass.Name
+      );
+      if (actionStatus == null) {
+        continue;
       }
+
+      actionStatus.active = true;
+      actionStatus.jobCount++;
 
       // Surface progress for the first (most recent) job actually in
       // Processing; jobs still in Holding have no progress to report yet.
-      if (job.Status == 'Processing' && status.totalBatches == null) {
-        status.batchesProcessed = job.JobItemsProcessed;
-        status.totalBatches = job.TotalJobItems;
+      if (job.Status == 'Processing' && actionStatus.totalBatches == null) {
+        actionStatus.batchesProcessed = job.JobItemsProcessed;
+        actionStatus.totalBatches = job.TotalJobItems;
       }
     }
 
     return status;
   }
 
-  // Response wrapper indicating whether a batch job for each action is
-  // currently Holding or Processing, how many such jobs there are in total,
-  // and progress (batches processed / total batches) for the most recent
-  // one that is actively Processing.
+  private static ActionJobStatus getActionStatus(
+    JobStatus status,
+    String apexClassName
+  ) {
+    if (apexClassName == 'InvalidateEmailBatch') {
+      return status.invalidate;
+    }
+    if (apexClassName == 'InvalidateEmailUndoBatch') {
+      return status.restore;
+    }
+    if (apexClassName == 'EmailFieldScannerBatch') {
+      return status.scan;
+    }
+    return null;
+  }
+
+  // Response wrapper with per-action (Invalidate/Restore/Scan) job status.
   public class JobStatus {
     @AuraEnabled
-    public Boolean invalidateActive;
+    public ActionJobStatus invalidate;
 
     @AuraEnabled
-    public Boolean restoreActive;
+    public ActionJobStatus restore;
 
     @AuraEnabled
-    public Boolean scanActive;
+    public ActionJobStatus scan;
+  }
+
+  // Whether a batch job for this action is currently Holding or Processing,
+  // how many such jobs there are, and progress (batches processed / total
+  // batches) for the most recent one that is actively Processing.
+  public class ActionJobStatus {
+    @AuraEnabled
+    public Boolean active = false;
 
     @AuraEnabled
-    public Integer activeJobCount;
+    public Integer jobCount = 0;
 
     @AuraEnabled
     public Integer batchesProcessed;

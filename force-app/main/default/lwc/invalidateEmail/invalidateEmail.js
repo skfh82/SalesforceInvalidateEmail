@@ -16,12 +16,19 @@ export default class InvalidateEmail extends LightningElement {
   isScanning = false;
 
   invalidateJobActive = false;
-  restoreJobActive = false;
-  scanJobActive = false;
+  invalidateJobCount = 0;
+  invalidateBatchesProcessed;
+  invalidateTotalBatches;
 
-  activeJobCount = 0;
-  batchesProcessed;
-  totalBatches;
+  restoreJobActive = false;
+  restoreJobCount = 0;
+  restoreBatchesProcessed;
+  restoreTotalBatches;
+
+  scanJobActive = false;
+  scanJobCount = 0;
+  scanBatchesProcessed;
+  scanTotalBatches;
 
   jobStatusPollHandle;
 
@@ -39,12 +46,21 @@ export default class InvalidateEmail extends LightningElement {
   async refreshJobStatus() {
     try {
       const status = await getActiveJobStatus();
-      this.invalidateJobActive = status.invalidateActive;
-      this.restoreJobActive = status.restoreActive;
-      this.scanJobActive = status.scanActive;
-      this.activeJobCount = status.activeJobCount;
-      this.batchesProcessed = status.batchesProcessed;
-      this.totalBatches = status.totalBatches;
+
+      this.invalidateJobActive = status.invalidate.active;
+      this.invalidateJobCount = status.invalidate.jobCount;
+      this.invalidateBatchesProcessed = status.invalidate.batchesProcessed;
+      this.invalidateTotalBatches = status.invalidate.totalBatches;
+
+      this.restoreJobActive = status.restore.active;
+      this.restoreJobCount = status.restore.jobCount;
+      this.restoreBatchesProcessed = status.restore.batchesProcessed;
+      this.restoreTotalBatches = status.restore.totalBatches;
+
+      this.scanJobActive = status.scan.active;
+      this.scanJobCount = status.scan.jobCount;
+      this.scanBatchesProcessed = status.scan.batchesProcessed;
+      this.scanTotalBatches = status.scan.totalBatches;
     } catch (err) {
       console.error('Error checking Email Invalidator job status: ', err);
     }
@@ -68,23 +84,40 @@ export default class InvalidateEmail extends LightningElement {
     return this.isScanning || this.scanJobActive;
   }
 
-  get isAnyJobActive() {
-    return (
-      this.invalidateJobActive || this.restoreJobActive || this.scanJobActive
+  get invalidateBannerMessage() {
+    return this.buildBannerMessage(
+      'Invalidate Emails',
+      this.invalidateJobCount,
+      this.invalidateBatchesProcessed,
+      this.invalidateTotalBatches
     );
   }
 
-  get activeJobCountMessage() {
-    const count = this.activeJobCount || 0;
-    return ` ${count} batch job${count === 1 ? '' : 's'} remaining.`;
+  get restoreBannerMessage() {
+    return this.buildBannerMessage(
+      'Restore Emails',
+      this.restoreJobCount,
+      this.restoreBatchesProcessed,
+      this.restoreTotalBatches
+    );
   }
 
-  get hasBatchProgress() {
-    return this.totalBatches != null;
+  get scanBannerMessage() {
+    return this.buildBannerMessage(
+      'Scan For Email Fields',
+      this.scanJobCount,
+      this.scanBatchesProcessed,
+      this.scanTotalBatches
+    );
   }
 
-  get batchProgressMessage() {
-    return `Currently processing ${this.batchesProcessed} of ${this.totalBatches} batches.`;
+  buildBannerMessage(actionLabel, jobCount, batchesProcessed, totalBatches) {
+    const count = jobCount || 0;
+    const countMessage = `${count} batch${count === 1 ? '' : 'es'} currently processing.`;
+    if (totalBatches != null) {
+      return `${actionLabel}: Processing ${batchesProcessed} of ${totalBatches} batches. ${countMessage}`;
+    }
+    return `${actionLabel}: ${countMessage}`;
   }
 
   async handleInvalidateClick() {

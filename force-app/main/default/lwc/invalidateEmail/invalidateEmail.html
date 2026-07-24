@@ -14,21 +14,32 @@
           </div>
         </div>
       </template>
-      <template if:true={isAnyJobActive}>
-        <div class="slds-p-horizontal_small slds-p-bottom_small">
-          <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_info" role="status">
-            <span class="slds-assistive-text">Processing</span>
-            <lightning-icon icon-name="utility:info" alternative-text="Processing" variant="inverse" size="x-small"
-              class="slds-m-right_x-small"></lightning-icon>
-            <template if:true={hasBatchProgress}>{batchProgressMessage}</template>
-            {activeJobCountMessage}
-          </div>
-        </div>
-      </template>
       <p class="slds-p-horizontal_small">
         You can invalidate or restore email addresses using the buttons below. Either will start a batch process to
         update all objects and fields listed in app setup data.
       </p>
+      <template if:true={invalidateJobActive}>
+        <div class="slds-p-horizontal_small slds-p-bottom_small">
+          <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_info slds-m-top_small"
+            role="status">
+            <span class="slds-assistive-text">Processing</span>
+            <lightning-icon icon-name="utility:info" alternative-text="Processing" variant="inverse" size="x-small"
+              class="slds-m-right_x-small"></lightning-icon>
+            {invalidateBannerMessage}
+          </div>
+        </div>
+      </template>
+      <template if:true={restoreJobActive}>
+        <div class="slds-p-horizontal_small slds-p-bottom_small">
+          <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_info slds-m-top_small"
+            role="status">
+            <span class="slds-assistive-text">Processing</span>
+            <lightning-icon icon-name="utility:info" alternative-text="Processing" variant="inverse" size="x-small"
+              class="slds-m-right_x-small"></lightning-icon>
+            {restoreBannerMessage}
+          </div>
+        </div>
+      </template>
       <div class="slds-p-horizontal_small slds-p-vertical_small slds-align_absolute-center">
         <lightning-button data-id="invalidate-button" label="Invalidate Emails" title="Invalidate All Email Addresses"
           onclick={handleInvalidateClick} class="slds-m-right_small" variant="destructive"
@@ -42,6 +53,17 @@
         email when the process is complete. But having email enabled until the process completes is unadvisable.</p>
       <p class="slds-p-horizontal_small">You can also scan for email fields in the org you might like to add to this
         process.</p>
+      <template if:true={scanJobActive}>
+        <div class="slds-p-horizontal_small slds-p-bottom_small">
+          <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_info slds-m-top_small"
+            role="status">
+            <span class="slds-assistive-text">Processing</span>
+            <lightning-icon icon-name="utility:info" alternative-text="Processing" variant="inverse" size="x-small"
+              class="slds-m-right_x-small"></lightning-icon>
+            {scanBannerMessage}
+          </div>
+        </div>
+      </template>
       <div class="slds-p-horizontal_small slds-p-vertical_small slds-align_absolute-center">
         <lightning-button data-id="scan-button" label="Scan For Email Fields" title="Scan for New Email Fields"
           onclick={handleEmailScanClick} class="slds-m-left_small" variant="brand"
