@@ -7,6 +7,8 @@ import isSandboxOrg from '@salesforce/apex/InvalidateEmailFlowAction.isSandboxOr
 import getActiveJobStatus from '@salesforce/apex/EmailInvalidatorJobStatusController.getActiveJobStatus';
 
 const JOB_STATUS_POLL_INTERVAL_MS = 5000;
+const JOB_STATUS_SLOW_POLL_INTERVAL_MS = 15000;
+const JOB_STATUS_SLOW_POLL_AFTER_MS = 5 * 60 * 1000;
 
 export default class InvalidateEmail extends LightningElement {
   @wire(isSandboxOrg) isSandbox;
@@ -31,16 +33,30 @@ export default class InvalidateEmail extends LightningElement {
   scanTotalBatches;
 
   jobStatusPollHandle;
+  pollingStartTime;
 
   connectedCallback() {
+    this.pollingStartTime = Date.now();
     this.refreshJobStatus();
-    this.jobStatusPollHandle = setInterval(() => {
-      this.refreshJobStatus();
-    }, JOB_STATUS_POLL_INTERVAL_MS);
+    this.scheduleNextPoll();
   }
 
   disconnectedCallback() {
-    clearInterval(this.jobStatusPollHandle);
+    clearTimeout(this.jobStatusPollHandle);
+  }
+
+  scheduleNextPoll() {
+    this.jobStatusPollHandle = setTimeout(() => {
+      this.refreshJobStatus();
+      this.scheduleNextPoll();
+    }, this.getPollIntervalMs());
+  }
+
+  getPollIntervalMs() {
+    const elapsed = Date.now() - this.pollingStartTime;
+    return elapsed >= JOB_STATUS_SLOW_POLL_AFTER_MS
+      ? JOB_STATUS_SLOW_POLL_INTERVAL_MS
+      : JOB_STATUS_POLL_INTERVAL_MS;
   }
 
   async refreshJobStatus() {
@@ -113,7 +129,7 @@ export default class InvalidateEmail extends LightningElement {
 
   buildBannerMessage(actionLabel, jobCount, batchesProcessed, totalBatches) {
     const count = jobCount || 0;
-    const countMessage = `${count} batch job${count === 1 ? '' : 's'} pending.`;
+    const countMessage = `${count} job${count === 1 ? '' : 's'} pending.`;
     if (totalBatches != null) {
       return `${actionLabel}: Processing ${batchesProcessed} of ${totalBatches} batches. ${countMessage}`;
     }

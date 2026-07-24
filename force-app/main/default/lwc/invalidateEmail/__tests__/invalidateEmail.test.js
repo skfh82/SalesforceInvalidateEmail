@@ -339,7 +339,7 @@ describe('c-invalidate-email', () => {
         // Assert: exactly one banner shown, with the invalidate-specific count
         const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
         expect(banners).toHaveLength(1);
-        expect(banners[0].textContent).toContain('Invalidate Emails: 2 batch jobs pending.');
+        expect(banners[0].textContent).toContain('Invalidate Emails: 2 jobs pending.');
 
         const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
         const restoreButton = element.shadowRoot.querySelector('[data-id="restore-button"]');
@@ -369,7 +369,7 @@ describe('c-invalidate-email', () => {
         const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
         expect(banners).toHaveLength(1);
         expect(banners[0].textContent).toContain(
-            'Invalidate Emails: Processing 4 of 10 batches. 1 batch job pending.'
+            'Invalidate Emails: Processing 4 of 10 batches. 1 job pending.'
         );
     });
 
@@ -393,7 +393,7 @@ describe('c-invalidate-email', () => {
         const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
         expect(banners).toHaveLength(1);
         expect(banners[0].textContent).toContain(
-            'Restore Emails: Processing 2 of 5 batches. 1 batch job pending.'
+            'Restore Emails: Processing 2 of 5 batches. 1 job pending.'
         );
 
         const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
@@ -423,7 +423,7 @@ describe('c-invalidate-email', () => {
         // Assert
         const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
         expect(banners).toHaveLength(1);
-        expect(banners[0].textContent).toContain('Scan For Email Fields: 1 batch job pending.');
+        expect(banners[0].textContent).toContain('Scan For Email Fields: 1 job pending.');
 
         const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
         const restoreButton = element.shadowRoot.querySelector('[data-id="restore-button"]');
@@ -452,6 +452,44 @@ describe('c-invalidate-email', () => {
         // Assert
         const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
         expect(banners).toHaveLength(3);
+    });
+
+    it('polls every 5s initially, then switches to 15s after 5 minutes have elapsed', () => {
+        // Arrange: control elapsed time and observe the interval each poll schedules,
+        // without waiting on real timers.
+        let currentTime = 1700000000000;
+        const dateNowSpy = jest.spyOn(Date, 'now').mockImplementation(() => currentTime);
+        const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementation(() => 0);
+
+        try {
+            const element = createElement('c-invalidate-email', {
+                is: InvalidateEmail
+            });
+
+            // Act: mount the component, which schedules the first poll.
+            document.body.appendChild(element);
+
+            // Assert: the first poll uses the fast (5s) interval.
+            expect(setTimeoutSpy).toHaveBeenLastCalledWith(expect.any(Function), 5000);
+
+            // Act: simulate that poll firing after 4 minutes have elapsed (still under
+            // the 5-minute threshold) by invoking the callback setTimeout was given.
+            currentTime += 4 * 60 * 1000;
+            setTimeoutSpy.mock.calls[setTimeoutSpy.mock.calls.length - 1][0]();
+
+            // Assert: still polling at the fast interval.
+            expect(setTimeoutSpy).toHaveBeenLastCalledWith(expect.any(Function), 5000);
+
+            // Act: simulate elapsed time crossing the 5-minute threshold (6 minutes total).
+            currentTime += 2 * 60 * 1000;
+            setTimeoutSpy.mock.calls[setTimeoutSpy.mock.calls.length - 1][0]();
+
+            // Assert: now polling at the slow (15s) interval.
+            expect(setTimeoutSpy).toHaveBeenLastCalledWith(expect.any(Function), 15000);
+        } finally {
+            dateNowSpy.mockRestore();
+            setTimeoutSpy.mockRestore();
+        }
     });
 
     it('does not show the production warning or disable the invalidate button in a sandbox', async () => {
