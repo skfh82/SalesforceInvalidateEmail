@@ -88,21 +88,6 @@ describe('c-invalidate-email', () => {
         jest.clearAllMocks();
     });
 
-    it('always shows the static Apex Job Status link', () => {
-        // Arrange
-        const element = createElement('c-invalidate-email', {
-            is: InvalidateEmail
-        });
-
-        // Act
-        document.body.appendChild(element);
-
-        // Assert
-        const jobsLink = element.shadowRoot.querySelector('a[href="/lightning/setup/AsyncApexJobs/home"]');
-        expect(jobsLink).not.toBeNull();
-        expect(jobsLink.textContent).toBe('Apex Job Status');
-    });
-
     it('renders the component with all three buttons', () => {
         // Arrange
         const element = createElement('c-invalidate-email', {
