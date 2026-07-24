@@ -50,19 +50,15 @@ export default class InvalidateEmailFieldsList extends NavigationMixin(Lightning
 
   @wire(getInvalidateEmailFields)
   wiredInvalidateEmailFields({ error, data }) {
-    this.isLoading = false;
     if (data) {
       // Convert map to list
-      const fieldList = [];
-      const recordNames = Object.getOwnPropertyNames(data);
-      for (let i = 0; i < recordNames.length; i++) {
-        fieldList.push(data[recordNames[i]]);
-      }
-      this.invalidateEmailFields = fieldList;
+      this.invalidateEmailFields = Object.values(data);
       this.error = undefined;
+      this.isLoading = false;
     } else if (error) {
       this.error = error.body?.message || 'Unknown error occurred';
       this.invalidateEmailFields = [];
+      this.isLoading = false;
     }
   }
 

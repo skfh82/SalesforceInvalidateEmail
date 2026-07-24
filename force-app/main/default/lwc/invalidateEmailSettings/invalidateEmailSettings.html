@@ -44,9 +44,9 @@
         <!-- Action buttons -->
         <div class="slds-m-top_large">
           <lightning-button-group>
-            <lightning-button variant="brand" label="Save & Deploy" onclick={handleSave} disabled={saveButtonDisabled}
-              class="slds-m-right_x-small"></lightning-button>
-            <lightning-button variant="neutral" label="Reset" onclick={handleReset}
+            <lightning-button data-id="save-button" variant="brand" label="Save & Deploy" onclick={handleSave}
+              disabled={saveButtonDisabled} class="slds-m-right_x-small"></lightning-button>
+            <lightning-button data-id="reset-button" variant="neutral" label="Reset" onclick={handleReset}
               disabled={resetButtonDisabled}></lightning-button>
           </lightning-button-group>
         </div>

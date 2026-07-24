@@ -65,15 +65,15 @@ describe('c-invalidate-email', () => {
         const buttons = element.shadowRoot.querySelectorAll('lightning-button');
         expect(buttons).toHaveLength(3);
 
-        const invalidateButton = buttons[0];
+        const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
         expect(invalidateButton.label).toBe('Invalidate Emails');
         expect(invalidateButton.variant).toBe('destructive');
 
-        const restoreButton = buttons[1];
+        const restoreButton = element.shadowRoot.querySelector('[data-id="restore-button"]');
         expect(restoreButton.label).toBe('Restore Emails');
         expect(restoreButton.variant).toBe('success');
 
-        const scanButton = buttons[2];
+        const scanButton = element.shadowRoot.querySelector('[data-id="scan-button"]');
         expect(scanButton.label).toBe('Scan For Email Fields');
         expect(scanButton.variant).toBe('brand');
     });
@@ -92,8 +92,7 @@ describe('c-invalidate-email', () => {
         document.body.appendChild(element);
 
         // Act
-        const buttons = element.shadowRoot.querySelectorAll('lightning-button');
-        const invalidateButton = buttons[0];
+        const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
         invalidateButton.click();
 
         // Wait for async operations
@@ -111,8 +110,7 @@ describe('c-invalidate-email', () => {
         document.body.appendChild(element);
 
         // Act
-        const buttons = element.shadowRoot.querySelectorAll('lightning-button');
-        const restoreButton = buttons[1];
+        const restoreButton = element.shadowRoot.querySelector('[data-id="restore-button"]');
 
         // This should not throw an error
         expect(() => {
@@ -141,8 +139,7 @@ describe('c-invalidate-email', () => {
         document.body.appendChild(element);
 
         // Act
-        const buttons = element.shadowRoot.querySelectorAll('lightning-button');
-        const scanButton = buttons[2];
+        const scanButton = element.shadowRoot.querySelector('[data-id="scan-button"]');
         scanButton.click();
 
         // Wait for async operations
@@ -167,7 +164,7 @@ describe('c-invalidate-email', () => {
         const alert = element.shadowRoot.querySelector('.slds-notify_alert');
         expect(alert).toBeNull();
 
-        const invalidateButton = element.shadowRoot.querySelectorAll('lightning-button')[0];
+        const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
         expect(invalidateButton.disabled).toBe(false);
     });
 
@@ -187,7 +184,7 @@ describe('c-invalidate-email', () => {
         expect(alert).not.toBeNull();
         expect(alert.textContent).toContain('production org');
 
-        const invalidateButton = element.shadowRoot.querySelectorAll('lightning-button')[0];
+        const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
         expect(invalidateButton.disabled).toBe(true);
     });
 });

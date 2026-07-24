@@ -3,13 +3,13 @@ import EmailFieldScanner from 'c/emailFieldScanner';
 import getCachedScanResults from '@salesforce/apex/EmailFieldScannerController.getCachedScanResults';
 import deploySelectedFields from '@salesforce/apex/EmailFieldScannerController.deploySelectedFields';
 
-// Mock the Apex methods
+// getCachedScanResults is called imperatively (not via @wire), so it must be
+// mocked as a plain jest.fn(), not a wire test adapter.
 jest.mock(
   '@salesforce/apex/EmailFieldScannerController.getCachedScanResults',
   () => {
-    const { createApexTestWireAdapter } = require('@salesforce/sfdx-lwc-jest');
     return {
-      default: createApexTestWireAdapter(jest.fn())
+      default: jest.fn()
     };
   },
   { virtual: true }
@@ -24,6 +24,12 @@ jest.mock(
   },
   { virtual: true }
 );
+
+// Flushes both the microtask queue and any pending imperative Apex promises
+// so that connectedCallback's async loadCachedResults() has settled.
+async function flushPromises() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
 
 describe('c-email-field-scanner', () => {
   afterEach(() => {
@@ -46,15 +52,14 @@ describe('c-email-field-scanner', () => {
   });
 
   it('displays error message when wire service returns error', async () => {
+    getCachedScanResults.mockRejectedValue({ body: { message: 'Test error' } });
+
     const element = createElement('c-email-field-scanner', {
       is: EmailFieldScanner
     });
     document.body.appendChild(element);
 
-    // Emit error from wire service
-    getCachedScanResults.error({ body: { message: 'Test error' } });
-
-    await Promise.resolve();
+    await flushPromises();
 
     const errorDiv = element.shadowRoot.querySelector('.slds-theme_error');
     expect(errorDiv).toBeTruthy();
@@ -76,15 +81,14 @@ describe('c-email-field-scanner', () => {
       ]
     };
 
+    getCachedScanResults.mockResolvedValue(mockData);
+
     const element = createElement('c-email-field-scanner', {
       is: EmailFieldScanner
     });
     document.body.appendChild(element);
 
-    // Emit data from wire service
-    getCachedScanResults.emit(mockData);
-
-    await Promise.resolve();
+    await flushPromises();
 
     // Check status fields are displayed
     const statusLabels = element.shadowRoot.querySelectorAll('.slds-form-element__label');
@@ -104,15 +108,14 @@ describe('c-email-field-scanner', () => {
       newEmailFields: []
     };
 
+    getCachedScanResults.mockResolvedValue(mockData);
+
     const element = createElement('c-email-field-scanner', {
       is: EmailFieldScanner
     });
     document.body.appendChild(element);
 
-    // Emit data from wire service
-    getCachedScanResults.emit(mockData);
-
-    await Promise.resolve();
+    await flushPromises();
 
     const noDataMessage = element.shadowRoot.querySelector('.slds-text-body_regular');
     expect(noDataMessage.textContent).toContain('No new email fields found');
@@ -137,16 +140,14 @@ describe('c-email-field-scanner', () => {
       success: true,
       message: 'Successfully deployed fields'
     });
+    getCachedScanResults.mockResolvedValue(mockData);
 
     const element = createElement('c-email-field-scanner', {
       is: EmailFieldScanner
     });
     document.body.appendChild(element);
 
-    // Emit data from wire service
-    getCachedScanResults.emit(mockData);
-
-    await Promise.resolve();
+    await flushPromises();
 
     // Simulate row selection
     const datatable = element.shadowRoot.querySelector('lightning-datatable');

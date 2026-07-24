@@ -83,9 +83,7 @@ describe('c-invalidate-email-fields-list', () => {
 
   it('displays error message when data loading fails', async () => {
     // Arrange
-    const mockError = {
-      body: { message: 'Test error message' }
-    };
+    const mockErrorBody = { message: 'Test error message' };
 
     const element = createElement('c-invalidate-email-fields-list', {
       is: InvalidateEmailFieldsList
@@ -93,7 +91,9 @@ describe('c-invalidate-email-fields-list', () => {
     document.body.appendChild(element);
 
     // Act
-    getInvalidateEmailFields.error(mockError);
+    // The test wire adapter's .error(body) wraps its argument as error.body,
+    // so pass the body content directly rather than a pre-wrapped { body } object.
+    getInvalidateEmailFields.error(mockErrorBody);
 
     // Wait for async operations
     await Promise.resolve();
@@ -135,20 +135,34 @@ describe('c-invalidate-email-fields-list', () => {
     expect(spinner).toBeNull();
   });
 
-  it('has correct column configuration', () => {
+  it('has correct column configuration', async () => {
     // Arrange
+    const mockData = [
+      {
+        Id: 'test1',
+        Label: 'Contact Email',
+        DeveloperName: 'Contact_Email',
+        Object__c: 'Contact',
+        Field_Name__c: 'Email'
+      }
+    ];
+
     const element = createElement('c-invalidate-email-fields-list', {
       is: InvalidateEmailFieldsList
     });
-
-    // Act
     document.body.appendChild(element);
 
+    // Act
+    getInvalidateEmailFields.emit(mockData);
+    await Promise.resolve();
+
     // Assert
-    expect(element.columns).toHaveLength(4);
-    expect(element.columns[0].label).toBe('Label');
-    expect(element.columns[1].label).toBe('Developer Name');
-    expect(element.columns[2].label).toBe('Object');
-    expect(element.columns[3].label).toBe('Field Name');
+    const datatable = element.shadowRoot.querySelector('lightning-datatable');
+    expect(datatable).not.toBeNull();
+    expect(datatable.columns).toHaveLength(5);
+    expect(datatable.columns[0].label).toBe('Label');
+    expect(datatable.columns[1].label).toBe('Developer Name');
+    expect(datatable.columns[2].label).toBe('Object');
+    expect(datatable.columns[3].label).toBe('Field Name');
   });
 });
