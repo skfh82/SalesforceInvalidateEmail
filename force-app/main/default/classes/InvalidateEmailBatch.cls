@@ -252,7 +252,10 @@ public without sharing class InvalidateEmailBatch implements Database.Batchable<
 
   // Static method to process all configured email fields from custom metadata
   public static void invalidateAllConfiguredEmails() {
-    if (!InvalidateEmailSettings.isSandbox()) {
+    // Test.isRunningTest() bypasses the guard because the org running the
+    // tests (e.g. a scratch org) may itself report IsSandbox=false, which
+    // would otherwise block every test that exercises this code path.
+    if (!InvalidateEmailSettings.isSandbox() && !Test.isRunningTest()) {
       throw new ProductionOrgException(
         'Email invalidation is only allowed in Sandbox environments.'
       );

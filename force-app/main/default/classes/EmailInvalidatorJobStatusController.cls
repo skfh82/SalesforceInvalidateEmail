@@ -12,6 +12,7 @@ public with sharing class EmailInvalidatorJobStatusController {
     status.restore = new ActionJobStatus();
     status.scan = new ActionJobStatus();
 
+    List<JobSnapshot> activeJobs = new List<JobSnapshot>();
     for (AsyncApexJob job : [
       SELECT ApexClass.Name, Status, JobItemsProcessed, TotalJobItems
       FROM AsyncApexJob
@@ -25,9 +26,35 @@ public with sharing class EmailInvalidatorJobStatusController {
         AND Status IN :ACTIVE_STATUSES
       ORDER BY CreatedDate DESC
     ]) {
+      activeJobs.add(
+        new JobSnapshot(
+          job.ApexClass.Name,
+          job.Status,
+          job.JobItemsProcessed,
+          job.TotalJobItems
+        )
+      );
+    }
+
+    applyJobStatuses(status, activeJobs);
+
+    return status;
+  }
+
+  // Split out from getActiveJobStatus() so tests can drive it with
+  // fabricated job data: AsyncApexJob's fields are all system-managed and
+  // can't be set even on an in-memory instance, and real Holding/Processing
+  // rows can't be produced deterministically in a test context (see
+  // EmailInvalidatorJobStatusControllerTest for details).
+  @TestVisible
+  private static void applyJobStatuses(
+    JobStatus status,
+    List<JobSnapshot> jobs
+  ) {
+    for (JobSnapshot job : jobs) {
       ActionJobStatus actionStatus = getActionStatus(
         status,
-        job.ApexClass.Name
+        job.apexClassName
       );
       if (actionStatus == null) {
         continue;
@@ -38,13 +65,34 @@ public with sharing class EmailInvalidatorJobStatusController {
 
       // Surface progress for the first (most recent) job actually in
       // Processing; jobs still in Holding have no progress to report yet.
-      if (job.Status == 'Processing' && actionStatus.totalBatches == null) {
-        actionStatus.batchesProcessed = job.JobItemsProcessed;
-        actionStatus.totalBatches = job.TotalJobItems;
+      if (job.status == 'Processing' && actionStatus.totalBatches == null) {
+        actionStatus.batchesProcessed = job.jobItemsProcessed;
+        actionStatus.totalBatches = job.totalJobItems;
       }
     }
+  }
 
-    return status;
+  // Minimal snapshot of the AsyncApexJob fields this class cares about.
+  // Members are declared public (rather than private) so that marking the
+  // class itself @TestVisible is enough to let tests construct and read it.
+  @TestVisible
+  private class JobSnapshot {
+    public String apexClassName;
+    public String status;
+    public Integer jobItemsProcessed;
+    public Integer totalJobItems;
+
+    public JobSnapshot(
+      String apexClassName,
+      String status,
+      Integer jobItemsProcessed,
+      Integer totalJobItems
+    ) {
+      this.apexClassName = apexClassName;
+      this.status = status;
+      this.jobItemsProcessed = jobItemsProcessed;
+      this.totalJobItems = totalJobItems;
+    }
   }
 
   private static ActionJobStatus getActionStatus(

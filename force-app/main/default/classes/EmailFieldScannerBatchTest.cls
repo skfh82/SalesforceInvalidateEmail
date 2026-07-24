@@ -174,6 +174,81 @@ private class EmailFieldScannerBatchTest {
   }
 
   @IsTest
+  static void testGenerateMetadataRecordNameTruncatesLongNames() {
+    EmailFieldScannerBatch batch = new EmailFieldScannerBatch();
+
+    Test.startTest();
+
+    String longObject = 'A_Very_Long_Custom_Object_Name_That_Exceeds__c';
+    String longField = 'A_Very_Long_Custom_Field_Name_That_Also_Exceeds__c';
+
+    String result = batch.generateMetadataRecordName(longObject, longField);
+
+    Test.stopTest();
+
+    System.assert(
+      result.length() <= 40,
+      'Truncated name should be at most 40 characters: ' + result
+    );
+  }
+
+  @IsTest
+  static void testGenerateMetadataRecordNameTruncatesWithNumericPrefix() {
+    EmailFieldScannerBatch batch = new EmailFieldScannerBatch();
+
+    Test.startTest();
+
+    String longObject = '1_Very_Long_Custom_Object_Name_That_Exceeds__c';
+    String longField = 'A_Very_Long_Custom_Field_Name_That_Also_Exceeds__c';
+
+    String result = batch.generateMetadataRecordName(longObject, longField);
+
+    Test.stopTest();
+
+    System.assert(
+      result.length() <= 40,
+      'Truncated name with Field_ prefix should be at most 40 characters: ' +
+      result
+    );
+    System.assert(
+      result.startsWith('Field_'),
+      'Name starting with a digit should get the Field_ prefix'
+    );
+  }
+
+  @IsTest
+  static void testGenerateUniqueMetadataRecordNameHandlesCollisionsWithLongNames() {
+    EmailFieldScannerBatch batch = new EmailFieldScannerBatch();
+    Set<String> usedNames = new Set<String>();
+
+    String longObject = 'A_Very_Long_Custom_Object_Name_That_Exceeds__c';
+    String longField = 'A_Very_Long_Custom_Field_Name_That_Also_Exceeds__c';
+
+    Test.startTest();
+
+    String first = batch.generateUniqueMetadataRecordName(
+      longObject,
+      longField,
+      usedNames
+    );
+    String second = batch.generateUniqueMetadataRecordName(
+      longObject,
+      longField,
+      usedNames
+    );
+
+    Test.stopTest();
+
+    System.assertNotEquals(
+      first,
+      second,
+      'Second call with the same names should get a unique suffixed name'
+    );
+    System.assert(first.length() <= 40);
+    System.assert(second.length() <= 40);
+  }
+
+  @IsTest
   static void testSendCompletionEmail() {
     EmailFieldScannerBatch batch = new EmailFieldScannerBatch();
     batch.emailFieldsFound = new List<EmailFieldScannerBatch.EmailFieldInfo>();

@@ -52,6 +52,37 @@ private class EmailFieldCacheDeployCallbackTest {
   }
 
   @IsTest
+  static void testHandleResultFailureWithComponentFailures() {
+    Test.startTest();
+
+    // Create callback instance
+    EmailFieldCacheDeployCallback callback = new EmailFieldCacheDeployCallback();
+
+    // Create mock failed deploy result with a component failure so the
+    // logging loop over componentFailures gets exercised
+    Metadata.DeployResult mockResult = new Metadata.DeployResult();
+    mockResult.done = true;
+    mockResult.success = false;
+
+    Metadata.DeployDetails details = new Metadata.DeployDetails();
+    Metadata.DeployMessage failure = new Metadata.DeployMessage();
+    failure.problem = 'Test failure reason';
+    details.componentFailures = new List<Metadata.DeployMessage>{ failure };
+    mockResult.details = details;
+
+    // Test the callback - should not throw exceptions
+    callback.handleResult(mockResult, null);
+
+    Test.stopTest();
+
+    // If we get here without exceptions, the test passes
+    System.assert(
+      true,
+      'Callback should handle component failures without exceptions'
+    );
+  }
+
+  @IsTest
   static void testHandleResultInProgress() {
     Test.startTest();
 
