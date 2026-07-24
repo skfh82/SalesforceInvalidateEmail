@@ -4,6 +4,16 @@ public with sharing class InvalidateEmailFlowAction {
     return executeEmailInvalidation();
   }
 
+  /**
+   * Exposes the org type to Lightning components so they can warn users
+   * that email invalidation is disabled outside of sandboxes.
+   * @return Boolean True if the current org is a sandbox
+   */
+  @AuraEnabled(cacheable=true)
+  public static Boolean isSandboxOrg() {
+    return InvalidateEmailSettings.isSandbox();
+  }
+
   @InvocableMethod(
     label='Invalidate All Configured Emails'
     description='Triggers batch jobs for all email fields configured in custom metadata. This is meant to be called once from a screen flow or LWC not in a bulk context.'

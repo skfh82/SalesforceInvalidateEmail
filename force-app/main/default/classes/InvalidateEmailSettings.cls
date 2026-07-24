@@ -44,4 +44,13 @@ public without sharing class InvalidateEmailSettings {
   public static void clearCache() {
     invalidationText = null;
   }
+
+  /**
+   * Checks whether the running org is a sandbox (or other non-production org).
+   * Used to prevent the email invalidation batch from ever running in production.
+   * @return Boolean True if the current org is a sandbox
+   */
+  public static Boolean isSandbox() {
+    return [SELECT IsSandbox FROM Organization LIMIT 1].IsSandbox;
+  }
 }

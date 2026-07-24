@@ -1,10 +1,16 @@
-import { LightningElement } from 'lwc';
+import { LightningElement, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import invalidateAllConfiguredEmails from '@salesforce/apex/InvalidateEmailFlowAction.invalidateAllConfiguredEmailsAura';
 import restoreAllConfiguredEmails from '@salesforce/apex/InvalidateEmailUndoFlowAction.restoreAllConfiguredEmailsAura';
 import startEmailFieldScanAura from '@salesforce/apex/EmailFieldScannerController.startEmailFieldScanAura';
+import isSandboxOrg from '@salesforce/apex/InvalidateEmailFlowAction.isSandboxOrg';
 
 export default class InvalidateEmail extends LightningElement {
+  @wire(isSandboxOrg) isSandbox;
+
+  get isProductionOrg() {
+    return this.isSandbox.data === false;
+  }
 
   async handleInvalidateClick() {
     // Call the AuraEnabled method to start the batch process

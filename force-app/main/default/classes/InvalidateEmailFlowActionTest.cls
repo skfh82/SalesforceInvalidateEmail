@@ -157,6 +157,21 @@ private class InvalidateEmailFlowActionTest {
   }
 
   @isTest
+  static void testIsSandboxOrg() {
+    Test.startTest();
+
+    Boolean result = InvalidateEmailFlowAction.isSandboxOrg();
+
+    Test.stopTest();
+
+    Assert.areEqual(
+      InvalidateEmailSettings.isSandbox(),
+      result,
+      'Should reflect the org type reported by InvalidateEmailSettings'
+    );
+  }
+
+  @isTest
   static void testEmailInvalidationResponseClass() {
     InvalidateEmailFlowAction.EmailInvalidationResponse response = new InvalidateEmailFlowAction.EmailInvalidationResponse();
 

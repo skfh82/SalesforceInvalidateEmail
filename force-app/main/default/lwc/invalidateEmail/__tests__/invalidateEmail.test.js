@@ -2,6 +2,7 @@ import { createElement } from '@lwc/engine-dom';
 import InvalidateEmail from 'c/invalidateEmail';
 import invalidateAllConfiguredEmails from '@salesforce/apex/InvalidateEmailFlowAction.invalidateAllConfiguredEmailsAura';
 import startEmailFieldScanAura from '@salesforce/apex/EmailFieldScannerController.startEmailFieldScanAura';
+import isSandboxOrg from '@salesforce/apex/InvalidateEmailFlowAction.isSandboxOrg';
 
 // Mock the Apex methods
 jest.mock(
@@ -17,6 +18,17 @@ jest.mock(
 
 jest.mock(
     '@salesforce/apex/EmailFieldScannerController.startEmailFieldScanAura',
+    () => {
+        const { createApexTestWireAdapter } = require('@salesforce/sfdx-lwc-jest');
+        return {
+            default: createApexTestWireAdapter(jest.fn())
+        };
+    },
+    { virtual: true }
+);
+
+jest.mock(
+    '@salesforce/apex/InvalidateEmailFlowAction.isSandboxOrg',
     () => {
         const { createApexTestWireAdapter } = require('@salesforce/sfdx-lwc-jest');
         return {
@@ -138,5 +150,44 @@ describe('c-invalidate-email', () => {
 
         // Assert
         expect(startEmailFieldScanAura).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not show the production warning or disable the invalidate button in a sandbox', async () => {
+        // Arrange
+        const element = createElement('c-invalidate-email', {
+            is: InvalidateEmail
+        });
+        document.body.appendChild(element);
+
+        // Act
+        isSandboxOrg.emit(true);
+        await Promise.resolve();
+
+        // Assert
+        const alert = element.shadowRoot.querySelector('.slds-notify_alert');
+        expect(alert).toBeNull();
+
+        const invalidateButton = element.shadowRoot.querySelectorAll('lightning-button')[0];
+        expect(invalidateButton.disabled).toBe(false);
+    });
+
+    it('shows the production warning and disables the invalidate button in production', async () => {
+        // Arrange
+        const element = createElement('c-invalidate-email', {
+            is: InvalidateEmail
+        });
+        document.body.appendChild(element);
+
+        // Act
+        isSandboxOrg.emit(false);
+        await Promise.resolve();
+
+        // Assert
+        const alert = element.shadowRoot.querySelector('.slds-notify_alert');
+        expect(alert).not.toBeNull();
+        expect(alert.textContent).toContain('production org');
+
+        const invalidateButton = element.shadowRoot.querySelectorAll('lightning-button')[0];
+        expect(invalidateButton.disabled).toBe(true);
     });
 });

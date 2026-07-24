@@ -1,13 +1,24 @@
 <template>
   <lightning-card title="Email Invalidation" icon-name="standard:account">
     <div class="slds-m-top_small slds-m-bottom_medium">
+      <template if:true={isProductionOrg}>
+        <div class="slds-p-horizontal_small slds-p-bottom_small">
+          <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_warning" role="alert">
+            <span class="slds-assistive-text">Warning</span>
+            <lightning-icon icon-name="utility:warning" alternative-text="Warning" variant="inverse" size="x-small"
+              class="slds-m-right_x-small"></lightning-icon>
+            This is a production org. Email invalidation is disabled here and can only run in a sandbox.
+          </div>
+        </div>
+      </template>
       <p class="slds-p-horizontal_small">
         You can invalidate or restore email addresses using the buttons below. Either will start a batch process to
         update all objects and fields listed in app setup data.
       </p>
       <div class="slds-p-horizontal_small slds-p-vertical_small slds-align_absolute-center">
         <lightning-button label="Invalidate Emails" title="Invalidate All Email Addresses"
-          onclick={handleInvalidateClick} class="slds-m-right_small" variant="destructive"></lightning-button>
+          onclick={handleInvalidateClick} class="slds-m-right_small" variant="destructive"
+          disabled={isProductionOrg}></lightning-button>
         <lightning-button label="Restore Emails" title="Remove .invalid from Email Addresses"
           onclick={handleRestoreClick} class="slds-m-horizontal_small" variant="success"></lightning-button>
       </div>

@@ -141,8 +141,18 @@ public without sharing class InvalidateEmailBatch implements Database.Batchable<
     }
   }
 
+  // Custom exception used to block email invalidation outside of sandboxes
+  public class ProductionOrgException extends Exception {
+  }
+
   // Static method to process all configured email fields from custom metadata
   public static void invalidateAllConfiguredEmails() {
+    if (!InvalidateEmailSettings.isSandbox()) {
+      throw new ProductionOrgException(
+        'Email invalidation is only allowed in Sandbox environments.'
+      );
+    }
+
     // Fetch the metadata and extract the field information.
     Map<String, Email_Invalidator_Fields__mdt> emailFields = Email_Invalidator_Fields__mdt.getAll();
     Map<String, Set<String>> objectsWithFields = getFieldDetails(emailFields);
