@@ -6,7 +6,29 @@ Currently this tool consists of unpackaged metadata. At some point I'll work on 
 
 ## Installation
 
-Currently this project just uses loose metadata and is not packaged. To install it, you need to clone this repo, or download its content. Then using sf cli run: `sf project deploy start`
+Currently this project just uses loose metadata and is not packaged. To install it, you need to clone this repo, or download its content. Then using sf cli run:
+```
+sf project deploy start
+```
+
+Or for a Production deploy only running specified tests:
+```
+sf project deploy start \
+  --test-level RunSpecifiedTests \
+  --tests EmailFieldCacheDeployCallbackTest \
+  --tests EmailFieldMetadataDeployCallbackTest \
+  --tests EmailFieldScannerBatchTest \
+  --tests EmailFieldScannerControllerTest \
+  --tests EmailInvalidatorJobStatusControllerTest \
+  --tests InvalidateEmailBatchTest \
+  --tests InvalidateEmailFieldsControllerTest \
+  --tests InvalidateEmailFlowActionTest \
+  --tests InvalidateEmailSandboxPostCopyTest \
+  --tests InvalidateEmailSettingsControllerTest \
+  --tests InvalidateEmailSettingsTest \
+  --tests InvalidateEmailUndoBatchTest \
+  --tests InvalidateEmailUndoFlowActionTest
+```
 
 ## Main App
 
