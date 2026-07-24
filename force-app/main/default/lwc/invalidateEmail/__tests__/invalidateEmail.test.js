@@ -221,19 +221,22 @@ describe('c-invalidate-email', () => {
 
         // Act
         const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
+        const restoreButton = element.shadowRoot.querySelector('[data-id="restore-button"]');
         invalidateButton.click();
         await Promise.resolve();
 
-        // Assert: disabled while the call is in flight
+        // Assert: disabled while the call is in flight; restore is linked and disabled too
         expect(invalidateButton.disabled).toBe(true);
+        expect(restoreButton.disabled).toBe(true);
 
         // Act: let the Apex call resolve
         resolveApex({ success: true, message: 'Started.' });
         await Promise.resolve();
         await Promise.resolve();
 
-        // Assert: re-enabled once scheduled
+        // Assert: both re-enabled once scheduled
         expect(invalidateButton.disabled).toBe(false);
+        expect(restoreButton.disabled).toBe(false);
     });
 
     it('disables the restore button while the restore call is pending and re-enables it after', async () => {
@@ -251,20 +254,23 @@ describe('c-invalidate-email', () => {
         document.body.appendChild(element);
 
         // Act
+        const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
         const restoreButton = element.shadowRoot.querySelector('[data-id="restore-button"]');
         restoreButton.click();
         await Promise.resolve();
 
-        // Assert: disabled while the call is in flight
+        // Assert: disabled while the call is in flight; invalidate is linked and disabled too
         expect(restoreButton.disabled).toBe(true);
+        expect(invalidateButton.disabled).toBe(true);
 
         // Act: let the Apex call resolve
         resolveApex({ success: true, message: 'Started.' });
         await Promise.resolve();
         await Promise.resolve();
 
-        // Assert: re-enabled once scheduled
+        // Assert: both re-enabled once scheduled
         expect(restoreButton.disabled).toBe(false);
+        expect(invalidateButton.disabled).toBe(false);
     });
 
     it('disables the scan button while the scan call is pending and re-enables it after', async () => {
@@ -309,7 +315,7 @@ describe('c-invalidate-email', () => {
         await flushPromises();
 
         // Assert
-        const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
+        const banners = element.shadowRoot.querySelectorAll('[role="status"]');
         expect(banners).toHaveLength(0);
 
         const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
@@ -320,7 +326,7 @@ describe('c-invalidate-email', () => {
         expect(scanButton.disabled).toBe(false);
     });
 
-    it('shows only the invalidate banner and disables only the invalidate button when an invalidate job is active', async () => {
+    it('shows only the invalidate banner, but disables both invalidate and restore buttons when an invalidate job is active', async () => {
         // Arrange
         getActiveJobStatus.mockResolvedValue({
             invalidate: { active: true, jobCount: 2, batchesProcessed: null, totalBatches: null },
@@ -337,15 +343,16 @@ describe('c-invalidate-email', () => {
         await flushPromises();
 
         // Assert: exactly one banner shown, with the invalidate-specific count
-        const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
+        const banners = element.shadowRoot.querySelectorAll('[role="status"]');
         expect(banners).toHaveLength(1);
         expect(banners[0].textContent).toContain('Invalidate Emails: 2 jobs pending.');
 
+        // Invalidate and Restore are linked: an active invalidate job disables both.
         const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
         const restoreButton = element.shadowRoot.querySelector('[data-id="restore-button"]');
         const scanButton = element.shadowRoot.querySelector('[data-id="scan-button"]');
         expect(invalidateButton.disabled).toBe(true);
-        expect(restoreButton.disabled).toBe(false);
+        expect(restoreButton.disabled).toBe(true);
         expect(scanButton.disabled).toBe(false);
     });
 
@@ -366,14 +373,14 @@ describe('c-invalidate-email', () => {
         await flushPromises();
 
         // Assert
-        const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
+        const banners = element.shadowRoot.querySelectorAll('[role="status"]');
         expect(banners).toHaveLength(1);
         expect(banners[0].textContent).toContain(
             'Invalidate Emails: Processing 4 of 10 batches. 1 job pending.'
         );
     });
 
-    it('shows only the restore banner and disables only the restore button when a restore job is active', async () => {
+    it('shows only the restore banner, but disables both invalidate and restore buttons when a restore job is active', async () => {
         // Arrange
         getActiveJobStatus.mockResolvedValue({
             invalidate: inactiveAction(),
@@ -390,16 +397,17 @@ describe('c-invalidate-email', () => {
         await flushPromises();
 
         // Assert
-        const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
+        const banners = element.shadowRoot.querySelectorAll('[role="status"]');
         expect(banners).toHaveLength(1);
         expect(banners[0].textContent).toContain(
             'Restore Emails: Processing 2 of 5 batches. 1 job pending.'
         );
 
+        // Invalidate and Restore are linked: an active restore job disables both.
         const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
         const restoreButton = element.shadowRoot.querySelector('[data-id="restore-button"]');
         const scanButton = element.shadowRoot.querySelector('[data-id="scan-button"]');
-        expect(invalidateButton.disabled).toBe(false);
+        expect(invalidateButton.disabled).toBe(true);
         expect(restoreButton.disabled).toBe(true);
         expect(scanButton.disabled).toBe(false);
     });
@@ -421,9 +429,10 @@ describe('c-invalidate-email', () => {
         await flushPromises();
 
         // Assert
-        const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
+        const banners = element.shadowRoot.querySelectorAll('[role="status"]');
         expect(banners).toHaveLength(1);
         expect(banners[0].textContent).toContain('Scan For Email Fields: 1 job pending.');
+        expect(banners[0].classList.contains('slds-theme_alt-inverse')).toBe(true);
 
         const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
         const restoreButton = element.shadowRoot.querySelector('[data-id="restore-button"]');
@@ -450,7 +459,7 @@ describe('c-invalidate-email', () => {
         await flushPromises();
 
         // Assert
-        const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
+        const banners = element.shadowRoot.querySelectorAll('[role="status"]');
         expect(banners).toHaveLength(3);
     });
 
@@ -492,7 +501,7 @@ describe('c-invalidate-email', () => {
         }
     });
 
-    it('does not show the production warning or disable the invalidate button in a sandbox', async () => {
+    it('does not show the production warning or disable the invalidate/restore buttons in a sandbox', async () => {
         // Arrange
         const element = createElement('c-invalidate-email', {
             is: InvalidateEmail
@@ -508,10 +517,12 @@ describe('c-invalidate-email', () => {
         expect(alert).toBeNull();
 
         const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
+        const restoreButton = element.shadowRoot.querySelector('[data-id="restore-button"]');
         expect(invalidateButton.disabled).toBe(false);
+        expect(restoreButton.disabled).toBe(false);
     });
 
-    it('shows the production warning and disables the invalidate button in production', async () => {
+    it('shows the production warning and disables both the invalidate and restore buttons in production', async () => {
         // Arrange
         const element = createElement('c-invalidate-email', {
             is: InvalidateEmail
@@ -527,7 +538,10 @@ describe('c-invalidate-email', () => {
         expect(alert).not.toBeNull();
         expect(alert.textContent).toContain('production org');
 
+        // Invalidate and Restore are linked: production blocking invalidate blocks restore too.
         const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
+        const restoreButton = element.shadowRoot.querySelector('[data-id="restore-button"]');
         expect(invalidateButton.disabled).toBe(true);
+        expect(restoreButton.disabled).toBe(true);
     });
 });

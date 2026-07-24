@@ -86,14 +86,24 @@ export default class InvalidateEmail extends LightningElement {
     return this.isSandbox.data === false;
   }
 
-  get isInvalidateDisabled() {
+  // Invalidate and Restore act on the same underlying data, so neither
+  // button should be usable while anything would block the other.
+  get isInvalidateOrRestoreDisabled() {
     return (
-      this.isProductionOrg || this.isInvalidating || this.invalidateJobActive
+      this.isProductionOrg ||
+      this.isInvalidating ||
+      this.invalidateJobActive ||
+      this.isRestoring ||
+      this.restoreJobActive
     );
   }
 
+  get isInvalidateDisabled() {
+    return this.isInvalidateOrRestoreDisabled;
+  }
+
   get isRestoreDisabled() {
-    return this.isRestoring || this.restoreJobActive;
+    return this.isInvalidateOrRestoreDisabled;
   }
 
   get isScanDisabled() {
