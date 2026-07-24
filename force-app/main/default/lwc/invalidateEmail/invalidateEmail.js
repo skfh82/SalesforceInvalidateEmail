@@ -4,6 +4,9 @@ import invalidateAllConfiguredEmails from '@salesforce/apex/InvalidateEmailFlowA
 import restoreAllConfiguredEmails from '@salesforce/apex/InvalidateEmailUndoFlowAction.restoreAllConfiguredEmailsAura';
 import startEmailFieldScanAura from '@salesforce/apex/EmailFieldScannerController.startEmailFieldScanAura';
 import isSandboxOrg from '@salesforce/apex/InvalidateEmailFlowAction.isSandboxOrg';
+import getActiveJobStatus from '@salesforce/apex/EmailInvalidatorJobStatusController.getActiveJobStatus';
+
+const JOB_STATUS_POLL_INTERVAL_MS = 5000;
 
 export default class InvalidateEmail extends LightningElement {
   @wire(isSandboxOrg) isSandbox;
@@ -12,12 +15,76 @@ export default class InvalidateEmail extends LightningElement {
   isRestoring = false;
   isScanning = false;
 
+  invalidateJobActive = false;
+  restoreJobActive = false;
+  scanJobActive = false;
+
+  activeJobCount = 0;
+  batchesProcessed;
+  totalBatches;
+
+  jobStatusPollHandle;
+
+  connectedCallback() {
+    this.refreshJobStatus();
+    this.jobStatusPollHandle = setInterval(() => {
+      this.refreshJobStatus();
+    }, JOB_STATUS_POLL_INTERVAL_MS);
+  }
+
+  disconnectedCallback() {
+    clearInterval(this.jobStatusPollHandle);
+  }
+
+  async refreshJobStatus() {
+    try {
+      const status = await getActiveJobStatus();
+      this.invalidateJobActive = status.invalidateActive;
+      this.restoreJobActive = status.restoreActive;
+      this.scanJobActive = status.scanActive;
+      this.activeJobCount = status.activeJobCount;
+      this.batchesProcessed = status.batchesProcessed;
+      this.totalBatches = status.totalBatches;
+    } catch (err) {
+      console.error('Error checking Email Invalidator job status: ', err);
+    }
+  }
+
   get isProductionOrg() {
     return this.isSandbox.data === false;
   }
 
   get isInvalidateDisabled() {
-    return this.isProductionOrg || this.isInvalidating;
+    return (
+      this.isProductionOrg || this.isInvalidating || this.invalidateJobActive
+    );
+  }
+
+  get isRestoreDisabled() {
+    return this.isRestoring || this.restoreJobActive;
+  }
+
+  get isScanDisabled() {
+    return this.isScanning || this.scanJobActive;
+  }
+
+  get isAnyJobActive() {
+    return (
+      this.invalidateJobActive || this.restoreJobActive || this.scanJobActive
+    );
+  }
+
+  get activeJobCountMessage() {
+    const count = this.activeJobCount || 0;
+    return ` ${count} batch job${count === 1 ? '' : 's'} remaining.`;
+  }
+
+  get hasBatchProgress() {
+    return this.totalBatches != null;
+  }
+
+  get batchProgressMessage() {
+    return `Currently processing ${this.batchesProcessed} of ${this.totalBatches} batches.`;
   }
 
   async handleInvalidateClick() {
@@ -58,6 +125,7 @@ export default class InvalidateEmail extends LightningElement {
       );
     } finally {
       this.isInvalidating = false;
+      this.refreshJobStatus();
     }
   }
 
@@ -99,6 +167,7 @@ export default class InvalidateEmail extends LightningElement {
       );
     } finally {
       this.isRestoring = false;
+      this.refreshJobStatus();
     }
   }
 
@@ -140,6 +209,7 @@ export default class InvalidateEmail extends LightningElement {
       );
     } finally {
       this.isScanning = false;
+      this.refreshJobStatus();
     }
   }
 }
