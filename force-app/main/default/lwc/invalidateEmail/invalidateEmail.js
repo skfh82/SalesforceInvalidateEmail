@@ -113,7 +113,7 @@ export default class InvalidateEmail extends LightningElement {
 
   buildBannerMessage(actionLabel, jobCount, batchesProcessed, totalBatches) {
     const count = jobCount || 0;
-    const countMessage = `${count} batch${count === 1 ? '' : 'es'} currently processing.`;
+    const countMessage = `${count} batch job${count === 1 ? '' : 's'} pending.`;
     if (totalBatches != null) {
       return `${actionLabel}: Processing ${batchesProcessed} of ${totalBatches} batches. ${countMessage}`;
     }

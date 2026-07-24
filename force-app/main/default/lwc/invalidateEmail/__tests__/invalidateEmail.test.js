@@ -339,7 +339,7 @@ describe('c-invalidate-email', () => {
         // Assert: exactly one banner shown, with the invalidate-specific count
         const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
         expect(banners).toHaveLength(1);
-        expect(banners[0].textContent).toContain('Invalidate Emails: 2 batches currently processing.');
+        expect(banners[0].textContent).toContain('Invalidate Emails: 2 batch jobs pending.');
 
         const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
         const restoreButton = element.shadowRoot.querySelector('[data-id="restore-button"]');
@@ -369,7 +369,7 @@ describe('c-invalidate-email', () => {
         const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
         expect(banners).toHaveLength(1);
         expect(banners[0].textContent).toContain(
-            'Invalidate Emails: Processing 4 of 10 batches. 1 batch currently processing.'
+            'Invalidate Emails: Processing 4 of 10 batches. 1 batch job pending.'
         );
     });
 
@@ -393,7 +393,7 @@ describe('c-invalidate-email', () => {
         const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
         expect(banners).toHaveLength(1);
         expect(banners[0].textContent).toContain(
-            'Restore Emails: Processing 2 of 5 batches. 1 batch currently processing.'
+            'Restore Emails: Processing 2 of 5 batches. 1 batch job pending.'
         );
 
         const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
@@ -423,7 +423,7 @@ describe('c-invalidate-email', () => {
         // Assert
         const banners = element.shadowRoot.querySelectorAll('.slds-theme_info');
         expect(banners).toHaveLength(1);
-        expect(banners[0].textContent).toContain('Scan For Email Fields: 1 batch currently processing.');
+        expect(banners[0].textContent).toContain('Scan For Email Fields: 1 batch job pending.');
 
         const invalidateButton = element.shadowRoot.querySelector('[data-id="invalidate-button"]');
         const restoreButton = element.shadowRoot.querySelector('[data-id="restore-button"]');
