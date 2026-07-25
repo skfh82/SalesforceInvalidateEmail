@@ -7,8 +7,8 @@ import isSandboxOrg from '@salesforce/apex/InvalidateEmailFlowAction.isSandboxOr
 import getActiveJobStatus from '@salesforce/apex/EmailInvalidatorJobStatusController.getActiveJobStatus';
 
 const JOB_STATUS_POLL_INTERVAL_MS = 5000;
-const JOB_STATUS_SLOW_POLL_INTERVAL_MS = 15000;
-const JOB_STATUS_SLOW_POLL_AFTER_MS = 5 * 60 * 1000;
+const JOB_STATUS_SLOW_POLL_INTERVAL_MS = 60000;
+const JOB_STATUS_SLOW_POLL_AFTER_MS = 2 * 60 * 1000;
 
 export default class InvalidateEmail extends LightningElement {
   @wire(isSandboxOrg) isSandbox;

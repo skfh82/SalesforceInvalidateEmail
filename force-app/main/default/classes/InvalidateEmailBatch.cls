@@ -265,15 +265,49 @@ public without sharing class InvalidateEmailBatch implements Database.Batchable<
     Map<String, Email_Invalidator_Fields__mdt> emailFields = Email_Invalidator_Fields__mdt.getAll();
     Map<String, Set<String>> objectsWithFields = getFieldDetails(emailFields);
 
+    // Objects with at least one unfilterable field (e.g. Long Text Area/Rich
+    // Text) can't be narrowed with a WHERE clause, so their batch scans the
+    // whole table. Run those last so the cheaper, WHERE-filtered batches for
+    // other objects get a head start.
+    List<String> filterableObjects = new List<String>();
+    List<String> fullTableScanObjects = new List<String>();
+    for (String objectName : objectsWithFields.keySet()) {
+      if (requiresFullTableScan(objectName, objectsWithFields.get(objectName))) {
+        fullTableScanObjects.add(objectName);
+      } else {
+        filterableObjects.add(objectName);
+      }
+    }
+
     // Create batches for each object
     // TODO: Protect against the 60 batch limit.
-    for (String objectName : objectsWithFields.keySet()) {
-      InvalidateEmailBatch batch = new InvalidateEmailBatch(
-        objectName,
-        objectsWithFields.get(objectName)
+    for (String objectName : filterableObjects) {
+      Database.executeBatch(
+        new InvalidateEmailBatch(objectName, objectsWithFields.get(objectName)),
+        200
       );
-      Database.executeBatch(batch, 200);
     }
+    for (String objectName : fullTableScanObjects) {
+      Database.executeBatch(
+        new InvalidateEmailBatch(objectName, objectsWithFields.get(objectName)),
+        200
+      );
+    }
+  }
+
+  // True when at least one of the object's configured fields can't be
+  // referenced in a WHERE clause (see isFilterable), meaning the batch's
+  // query locator must fall back to scanning every record for that object.
+  public static Boolean requiresFullTableScan(
+    String objectName,
+    Set<String> fields
+  ) {
+    for (String f : fields) {
+      if (!isFilterable(objectName, f)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // Helper method to extract the object and field information
