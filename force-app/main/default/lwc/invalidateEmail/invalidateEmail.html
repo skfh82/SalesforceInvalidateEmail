@@ -17,10 +17,10 @@
       </p>
       <template if:true={invalidateJobActive}>
         <div class="slds-p-horizontal_small slds-p-bottom_small">
-          <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_info slds-m-top_small"
+          <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_error slds-m-top_small"
             role="status">
             <span class="slds-assistive-text">Processing</span>
-            <lightning-icon icon-name="utility:info" alternative-text="Processing" variant="inverse" size="x-small"
+            <lightning-icon icon-name="utility:error" alternative-text="Processing" variant="inverse" size="x-small"
               class="slds-m-right_x-small"></lightning-icon>
             {invalidateBannerMessage}
           </div>
@@ -52,7 +52,7 @@
         process.</p>
       <template if:true={scanJobActive}>
         <div class="slds-p-horizontal_small slds-p-bottom_small">
-          <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_alt-inverse slds-m-top_small"
+          <div class="slds-notify slds-notify_alert slds-theme_alert-texture slds-theme_info slds-m-top_small"
             role="status">
             <span class="slds-assistive-text">Processing</span>
             <lightning-icon icon-name="utility:info" alternative-text="Processing" variant="inverse" size="x-small"

@@ -6,7 +6,7 @@ import startEmailFieldScanAura from '@salesforce/apex/EmailFieldScannerControlle
 import isSandboxOrg from '@salesforce/apex/InvalidateEmailFlowAction.isSandboxOrg';
 import getActiveJobStatus from '@salesforce/apex/EmailInvalidatorJobStatusController.getActiveJobStatus';
 
-const JOB_STATUS_POLL_INTERVAL_MS = 5000;
+const JOB_STATUS_POLL_INTERVAL_MS = 10000;
 const JOB_STATUS_SLOW_POLL_INTERVAL_MS = 60000;
 const JOB_STATUS_SLOW_POLL_AFTER_MS = 2 * 60 * 1000;
 
@@ -155,12 +155,12 @@ export default class InvalidateEmail extends LightningElement {
       console.log("Response from function: ");
       console.log(response);
       if (response.success) {
-        // Show success toast
+        // Show success toast (red, matching the destructive Invalidate button)
         this.dispatchEvent(
           new ShowToastEvent({
             title: 'Email Invalidation Started',
             message: response.message,
-            variant: 'success'
+            variant: 'error'
           })
         );
       } else {
@@ -197,7 +197,7 @@ export default class InvalidateEmail extends LightningElement {
       console.log("Response from restore function: ");
       console.log(response);
       if (response.success) {
-        // Show success toast
+        // Show success toast (green, matching the success Restore button)
         this.dispatchEvent(
           new ShowToastEvent({
             title: 'Email Restoration Started',
@@ -239,12 +239,12 @@ export default class InvalidateEmail extends LightningElement {
       console.log("Response from email scan function: ");
       console.log(response);
       if (response.success) {
-        // Show success toast
+        // Show success toast (blue, matching the brand Scan button)
         this.dispatchEvent(
           new ShowToastEvent({
             title: 'Email Field Scan Started',
             message: response.message,
-            variant: 'success'
+            variant: 'info'
           })
         );
       } else {
